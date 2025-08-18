@@ -89,6 +89,9 @@ export default function Login() {
           ¿Primera vez? <span className="font-medium">Crea tu cuenta</span> y revisa tu correo para confirmar.
         </p>
       </div>
+       <div className="min-h-screen bg-red-500 flex items-center justify-center">
+      <h1 className="text-5xl font-bold text-white">Tailwind funciona 🚀</h1>
+    </div>
     </div>
   )
 }
