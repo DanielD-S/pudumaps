@@ -7,13 +7,14 @@ import ProjectPage from './pages/ProjectPage'
 
 export default function App() {
   return (
-    <AuthGate
-      fallback={<Login />}
-    >
+    <AuthGate fallback={<Login />}>
       {(session) => (
-        <BrowserRouter>
+        <BrowserRouter basename="/pudumaps">   {/* 👈 aquí el fix */}
           <Routes>
-            <Route path="/" element={<Dashboard email={session.user.email ?? 'sin-email'} />} />
+            <Route
+              path="/"
+              element={<Dashboard email={session.user.email ?? 'sin-email'} />}
+            />
             <Route path="/project/:projectId" element={<ProjectPage />} />
           </Routes>
         </BrowserRouter>
