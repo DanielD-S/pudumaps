@@ -4,94 +4,96 @@ import { supabase } from "../lib/supabase"
 export default function Login() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [busy, setBusy] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  async function signIn(e: React.FormEvent) {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    setBusy(true)
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    setBusy(false)
-    if (error) alert(error.message)
+    setLoading(true)
+    setError(null)
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    })
+
+    if (error) {
+      setError(error.message)
+    }
+
+    setLoading(false)
   }
 
-  async function signUp(e: React.MouseEvent) {
-    e.preventDefault()
-    setBusy(true)
-    const { error } = await supabase.auth.signUp({ email, password })
-    setBusy(false)
-    if (error) alert(error.message)
-    else alert("Revisa tu correo para confirmar la cuenta.")
+  const handleSignup = async () => {
+    setLoading(true)
+    setError(null)
+
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+    })
+
+    if (error) {
+      setError(error.message)
+    }
+
+    setLoading(false)
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-green-100 to-blue-100 p-4">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-lg p-8">
-        {/* Logo / Título */}
-        <h1 className="text-3xl font-bold text-center text-gray-800 mb-6">
-          🌿 Pudumaps
-        </h1>
-        <h2 className="text-lg text-center text-gray-500 mb-8">
-          Inicia sesión en tu cuenta
-        </h2>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-gray-800 to-black">
+      <div className="card max-w-md w-full">
+        <div className="text-center mb-6">
+          <span className="text-4xl">🌿</span>
+          <h1 className="text-2xl font-bold mt-2">Pudumaps</h1>
+          <p className="text-gray-400 text-sm">Inicia sesión en tu cuenta</p>
+        </div>
 
-        {/* Formulario */}
-        <form className="space-y-4" onSubmit={signIn}>
+        <form className="space-y-5" onSubmit={handleLogin}>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Correo electrónico
-            </label>
+            <label className="block text-sm text-gray-300 mb-1">Correo electrónico</label>
             <input
               type="email"
+              className="input"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="tucorreo@dominio.com"
+              placeholder="ejemplo@correo.com"
               required
-              className="w-full px-4 py-2 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-green-500 focus:outline-none"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Contraseña
-            </label>
+            <label className="block text-sm text-gray-300 mb-1">Contraseña</label>
             <input
               type="password"
+              className="input"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="********"
               required
-              className="w-full px-4 py-2 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-green-500 focus:outline-none"
             />
           </div>
 
-          {/* Botones */}
-          <div className="flex flex-col gap-3">
-            <button
-              className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2 rounded-xl transition disabled:opacity-60"
-              type="submit"
-              disabled={busy}
-            >
-              {busy ? "Ingresando…" : "Entrar"}
-            </button>
+          {error && <p className="text-red-400 text-sm">{error}</p>}
 
-            <button
-              onClick={signUp}
-              disabled={busy}
-              className="w-full border border-gray-300 hover:border-gray-400 text-gray-700 font-medium py-2 rounded-xl transition"
-            >
-              Crear cuenta
-            </button>
-          </div>
+          <button type="submit" className="btn btn-primary" disabled={loading}>
+            {loading ? "Entrando..." : "Entrar"}
+          </button>
+
+          <button
+            type="button"
+            onClick={handleSignup}
+            className="btn btn-secondary"
+            disabled={loading}
+          >
+            {loading ? "Creando..." : "Crear cuenta"}
+          </button>
         </form>
 
-        {/* Mensaje */}
-        <p className="text-center text-sm text-gray-500 mt-6">
-          ¿Primera vez? <span className="font-medium">Crea tu cuenta</span> y revisa tu correo para confirmar.
+        <p className="text-center text-gray-500 text-sm mt-6">
+          ¿Primera vez? <span className="text-green-400">Crea tu cuenta</span> y revisa tu correo para confirmar.
         </p>
       </div>
-       <div className="min-h-screen bg-red-500 flex items-center justify-center">
-      <h1 className="text-5xl font-bold text-white">Tailwind funciona 🚀</h1>
-    </div>
     </div>
   )
 }

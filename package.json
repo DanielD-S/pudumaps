@@ -14,6 +14,7 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.45.4",
     "@tmcw/togeojson": "^7.1.2",
+    "esri-leaflet": "^3.0.18",
     "html2canvas": "^1.4.1",
     "jspdf": "^3.0.1",
     "jszip": "^3.10.1",
@@ -28,6 +29,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.12",
+    "@types/esri-leaflet": "^3.0.3",
     "@types/leaflet": "^1.9.20",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",

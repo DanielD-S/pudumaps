@@ -1,99 +1,105 @@
-import React, { useState } from "react";
-import type { ProjectLayer, LayerStyle } from "../types";
-import "../css/LayerStylesPanel.css";
+import { useState } from "react"
+import type { ProjectLayer, LayerStyle } from "../types"
 
-type Props = {
-  layers: ProjectLayer[];
-  styles: Record<string, LayerStyle>;
-  onLocalChange: (layerId: string, patch: Partial<LayerStyle>) => void;
-};
+interface Props {
+  layers: ProjectLayer[]
+  styles: Record<string, LayerStyle>
+  onLocalChange: (layerId: string, patch: Partial<LayerStyle>) => void
+}
 
 export default function LayerStylePanel({ layers, styles, onLocalChange }: Props) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false)
+
+  if (layers.length === 0) return null
 
   return (
-    <div className="layer-style-container">
-      {/* Cabecera del panel */}
-      <div className="panel-header" onClick={() => setOpen(!open)}>
-        <h3 className="panel-title">🎨 Estilos de capas</h3>
-        <span className={`arrow ${open ? "open" : ""}`}>▾</span>
-      </div>
+    <div className="mt-4">
+      {/* Botón para desplegar/esconder */}
+      <button
+        onClick={() => setOpen(!open)}
+        className="btn btn-secondary w-full flex justify-between items-center"
+      >
+        🎨 Estilos de capas
+        <span>{open ? "▲" : "▼"}</span>
+      </button>
 
-      {/* Contenido colapsable */}
-      <div className={`panel-body ${open ? "expanded" : "collapsed"}`}>
-        {layers.map((l) => {
-          const st = styles[l.id];
-          if (!st) return null;
+      {/* Contenido desplegable */}
+      {open && (
+        <div className="mt-4 bg-white rounded-xl shadow-md p-6 space-y-6">
+          {layers.map((layer) => {
+            const st = styles[layer.id] || {}
+            return (
+              <div key={layer.id} className="border-b border-gray-200 pb-4 last:border-0 last:pb-0">
+                <h4 className="font-semibold text-gray-700 mb-2">{layer.name}</h4>
 
-          return (
-            <div key={l.id} className="style-card">
-              <h4>{l.name}</h4>
+                {/* Color de borde */}
+                <label className="block mb-2">
+                  <span className="text-sm text-gray-600">Borde</span>
+                  <input
+                    type="color"
+                    value={st.color || "#000000"}
+                    onChange={(e) => onLocalChange(layer.id, { color: e.target.value })}
+                    className="ml-2"
+                  />
+                </label>
 
-              <div className="style-group">
-                <label>Color línea</label>
-                <input
-                  type="color"
-                  value={st.color}
-                  onChange={(e) => onLocalChange(l.id, { color: e.target.value })}
-                />
+                {/* Opacidad */}
+                <label className="block mb-2">
+                  <span className="text-sm text-gray-600">Opacidad</span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    value={st.opacity ?? 1}
+                    onChange={(e) => onLocalChange(layer.id, { opacity: parseFloat(e.target.value) })}
+                    className="w-full"
+                  />
+                  <span className="text-sm ml-2">{Math.round((st.opacity ?? 1) * 100)}%</span>
+                </label>
 
-                <label>Grosor</label>
-                <input
-                  type="number"
-                  min={1}
-                  max={10}
-                  value={st.weight}
-                  onChange={(e) => onLocalChange(l.id, { weight: Number(e.target.value) })}
-                />
+                {/* Relleno */}
+                <label className="block mb-2">
+                  <span className="text-sm text-gray-600">Relleno</span>
+                  <input
+                    type="color"
+                    value={st.fillColor || "#000000"}
+                    onChange={(e) => onLocalChange(layer.id, { fillColor: e.target.value })}
+                    className="ml-2"
+                  />
+                  <input
+                    type="range"
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    value={st.fillOpacity ?? 0.5}
+                    onChange={(e) =>
+                      onLocalChange(layer.id, { fillOpacity: parseFloat(e.target.value) })
+                    }
+                    className="w-full"
+                  />
+                  <span className="text-sm ml-2">{Math.round((st.fillOpacity ?? 0.5) * 100)}%</span>
+                </label>
 
-                <label>Opacidad</label>
-                <input
-                  type="number"
-                  step={0.05}
-                  min={0}
-                  max={1}
-                  value={st.opacity}
-                  onChange={(e) => onLocalChange(l.id, { opacity: Number(e.target.value) })}
-                />
+                {/* Radio */}
+                <label className="block mb-2">
+                  <span className="text-sm text-gray-600">Radio</span>
+                  <input
+                    type="range"
+                    min={1}
+                    max={20}
+                    step={1}
+                    value={st.radius ?? 5}
+                    onChange={(e) => onLocalChange(layer.id, { radius: parseInt(e.target.value) })}
+                    className="w-full"
+                  />
+                  <span className="text-sm ml-2">{st.radius ?? 5}px</span>
+                </label>
               </div>
-
-              <hr />
-
-              <div className="style-group">
-                <label>Color relleno</label>
-                <input
-                  type="color"
-                  value={st.fillColor}
-                  onChange={(e) => onLocalChange(l.id, { fillColor: e.target.value })}
-                />
-
-                <label>Opacidad relleno</label>
-                <input
-                  type="number"
-                  step={0.05}
-                  min={0}
-                  max={1}
-                  value={st.fillOpacity}
-                  onChange={(e) => onLocalChange(l.id, { fillOpacity: Number(e.target.value) })}
-                />
-              </div>
-
-              <hr />
-
-              <div className="style-group">
-                <label>Radio puntos</label>
-                <input
-                  type="number"
-                  min={1}
-                  max={30}
-                  value={st.radius}
-                  onChange={(e) => onLocalChange(l.id, { radius: Number(e.target.value) })}
-                />
-              </div>
-            </div>
-          );
-        })}
-      </div>
+            )
+          })}
+        </div>
+      )}
     </div>
-  );
+  )
 }

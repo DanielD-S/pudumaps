@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
+import { forwardRef, useImperativeHandle, useMemo, useRef, useState } from 'react'
 import {
   MapContainer, TileLayer, GeoJSON as GeoJSONLayer,
   LayersControl, ZoomControl, ScaleControl, Polyline, useMapEvents
@@ -9,9 +9,11 @@ import JSZip from 'jszip'
 import tokml from 'tokml'
 import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas'
-import "../css/MapView.css"
 
-export type MapViewApi = { zoomTo: (gj: any) => void }
+export type MapViewApi = { 
+  zoomTo: (gj: any) => void
+  readonly leafletMap: LeafletMap | null   // getter dinámico
+}
 
 export default forwardRef<MapViewApi, {
   layers: ProjectLayer[]
@@ -23,6 +25,7 @@ export default forwardRef<MapViewApi, {
 
   const chileCenter = useMemo(() => ({ lat: -33.45, lng: -70.65 }), [])
 
+  // Exponer API al padre
   useImperativeHandle(ref, () => ({
     zoomTo(gj: any) {
       if (!mapRef.current) return
@@ -30,9 +33,12 @@ export default forwardRef<MapViewApi, {
         const f = L.geoJSON(gj)
         const b = f.getBounds()
         if (b.isValid()) mapRef.current.fitBounds(b as LatLngBoundsExpression, { padding: [20, 20] })
-      } catch { }
+      } catch {}
+    },
+    get leafletMap() {   // 👈 getter dinámico (siempre actualizado)
+      return mapRef.current
     }
-  }), [])
+  }))
 
   // --- Controles extra
   function fitChile() {
@@ -72,7 +78,7 @@ export default forwardRef<MapViewApi, {
   const [measureOn, setMeasureOn] = useState(false)
   const [drawMode, setDrawMode] = useState<'none' | 'line' | 'polygon'>('none')
 
-  // --- Exportar KMZ (capas visibles) y PDF
+  // --- Exportar ---
   async function exportVisibleAsKMZ() {
     try {
       const active = layers.filter(l => visible[l.id])
@@ -132,48 +138,42 @@ export default forwardRef<MapViewApi, {
   }
 
   return (
-    <div className="map-wrapper" ref={mapBoxRef}>
-      {/* Barra de herramientas */}
-      <div className="map-toolbar">
-        <button onClick={fitChile}>↺ Chile</button>
-        <button onClick={goToMyLocation}>📍 Mi ubicación</button>
-        <button onClick={toggleFullscreen}>
-          {isFullscreen ? '⛶ Salir pantalla completa' : '⛶ Pantalla completa'}
+    <div ref={mapBoxRef} className="relative w-full rounded-xl border shadow-lg overflow-hidden">
+      {/* Toolbar flotante */}
+      <div className="absolute top-2 left-2 z-[1000] flex flex-wrap gap-2 p-2 bg-white/90 backdrop-blur rounded-lg shadow-md">
+        <button onClick={fitChile} className="px-3 py-1 rounded-lg bg-white border text-gray-700 text-sm hover:bg-gray-100">↺ Chile</button>
+        <button onClick={goToMyLocation} className="px-3 py-1 rounded-lg bg-white border text-gray-700 text-sm hover:bg-gray-100">📍 Mi ubicación</button>
+        <button onClick={toggleFullscreen} className="px-3 py-1 rounded-lg bg-white border text-gray-700 text-sm hover:bg-gray-100">
+          {isFullscreen ? '⛶ Salir' : '⛶ Pantalla completa'}
         </button>
         <button
           onClick={() => setMeasureOn(v => !v)}
-          className={measureOn ? "active" : ""}
+          className={`px-3 py-1 rounded-lg border text-sm ${measureOn ? 'bg-green-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-100'}`}
         >
           📏 Medir
         </button>
         <button
           onClick={() => setDrawMode(m => m === 'line' ? 'none' : 'line')}
-          className={drawMode === 'line' ? "active" : ""}
+          className={`px-3 py-1 rounded-lg border text-sm ${drawMode === 'line' ? 'bg-green-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-100'}`}
         >
           ✏️ Línea
         </button>
         <button
           onClick={() => setDrawMode(m => m === 'polygon' ? 'none' : 'polygon')}
-          className={drawMode === 'polygon' ? "active" : ""}
+          className={`px-3 py-1 rounded-lg border text-sm ${drawMode === 'polygon' ? 'bg-green-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-100'}`}
         >
           ▰ Polígono
         </button>
-        <button onClick={() => setDrawMode('none')}>❌ Limpiar dibujo</button>
-        <button onClick={exportVisibleAsKMZ}>⬇️ Exportar KMZ</button>
-        <button onClick={exportAsPDF}>🖨️ Exportar PDF</button>
-      </div>
-
-      {/* Panel estilos de capas */}
-      <div className="map-layers-panel">
-        <h4>🎨 Estilos de capas</h4>
-        {/* Aquí va tu dropdown o componente de estilos */}
+        <button onClick={() => setDrawMode('none')} className="px-3 py-1 rounded-lg bg-red-500 text-white text-sm hover:bg-red-600">❌ Limpiar</button>
+        <button onClick={exportVisibleAsKMZ} className="px-3 py-1 rounded-lg bg-blue-600 text-white text-sm hover:bg-blue-700">⬇️ KMZ</button>
+        <button onClick={exportAsPDF} className="px-3 py-1 rounded-lg bg-indigo-600 text-white text-sm hover:bg-indigo-700">🖨️ PDF</button>
       </div>
 
       {/* Mapa */}
       <MapContainer
         center={[chileCenter.lat, chileCenter.lng]}
         zoom={5}
-        style={{ height: '60vh', width: '100%' }}
+        className="w-full h-[70vh] rounded-xl"
         preferCanvas
         zoomControl={false}
         ref={(m) => { if (m) mapRef.current = m }}
@@ -181,7 +181,6 @@ export default forwardRef<MapViewApi, {
         <ZoomControl position="topright" />
         <ScaleControl position="bottomleft" />
 
-        {/* Bases */}
         <LayersControl position="topleft">
           <LayersControl.BaseLayer checked name="OpenStreetMap">
             <TileLayer
@@ -199,29 +198,21 @@ export default forwardRef<MapViewApi, {
           </LayersControl.BaseLayer>
         </LayersControl>
 
-        {/* Capas visibles */}
+        {/* Capas GeoJSON */}
         {layers.filter(l => visible[l.id]).map(l => {
           const st = styles[l.id]
-          const color = st?.color ?? '#1f2937'
-          const weight = st?.weight ?? 2
-          const opacity = st?.opacity ?? 1
-          const fillColor = st?.fillColor ?? '#1f2937'
-          const fillOpacity = st?.fillOpacity ?? 0.2
-          const radius = st?.radius ?? 5
-          const styleSig = `${color}|${weight}|${opacity}|${fillColor}|${fillOpacity}|${radius}`
-
           return (
             <GeoJSONLayer
-              key={`${l.id}-${styleSig}`}
+              key={l.id}
               data={l.geojson as any}
               style={() => ({
-                color,
-                weight,
-                opacity,
-                fillColor,
-                fillOpacity,
+                color: st?.color ?? '#1f2937',
+                weight: st?.weight ?? 2,
+                opacity: st?.opacity ?? 1,
+                fillColor: st?.fillColor ?? '#1f2937',
+                fillOpacity: st?.fillOpacity ?? 0.2,
               })}
-              pointToLayer={(_f, latlng) => L.circleMarker(latlng, { radius: radius })}
+              pointToLayer={(_f, latlng) => L.circleMarker(latlng, { radius: st?.radius ?? 5 })}
               onEachFeature={(feature, layer) => {
                 const props = feature.properties || {}
                 let html = `<div><strong>${l.name}</strong></div><table style="font-size:12px">`
@@ -235,7 +226,6 @@ export default forwardRef<MapViewApi, {
           )
         })}
 
-        {/* Herramientas */}
         <MeasureLayer enabled={measureOn} />
         <SketchLayer mode={drawMode} />
       </MapContainer>
@@ -243,36 +233,25 @@ export default forwardRef<MapViewApi, {
   )
 })
 
-// ---------- herramientas internas ----------
-function MeasureLayer({ enabled }: { enabled: boolean }) {
+// ---- Herramientas internas ----
+function MeasureLayer({ enabled }: { enabled: boolean }): JSX.Element | null {
   const [pts, setPts] = useState<LatLng[]>([])
-  const [total, setTotal] = useState(0)
-  const [lastSeg, setLastSeg] = useState(0)
-
   useMapEvents({
     click(e) { if (enabled) setPts(prev => [...prev, e.latlng]) },
-    dblclick() { if (enabled) { setPts([]); setTotal(0); setLastSeg(0) } }
+    dblclick() { if (enabled) setPts([]) }
   })
-
-  useEffect(() => {
-    if (pts.length < 2) { setTotal(0); setLastSeg(0); return }
-    let d = 0; for (let i = 1; i < pts.length; i++) d += pts[i - 1].distanceTo(pts[i])
-    setTotal(d); setLastSeg(pts[pts.length - 2].distanceTo(pts[pts.length - 1]))
-  }, [pts])
-
   if (!enabled) return null
   return <Polyline positions={pts} />
 }
 
-function SketchLayer({ mode }: { mode: 'none' | 'line' | 'polygon' }) {
+function SketchLayer({ mode }: { mode: 'none' | 'line' | 'polygon' }): JSX.Element | null {
   const [vertices, setVertices] = useState<LatLng[]>([])
   useMapEvents({
     click(e) { if (mode !== 'none') setVertices(v => [...v, e.latlng]) },
     dblclick() { if (mode !== 'none') setVertices([]) }
   })
   if (mode === 'none') return null
-  const poly = vertices.map(v => [v.lat, v.lng]) as any
-  return <Polyline positions={poly} />
+  return <Polyline positions={vertices} />
 }
 
 // utils

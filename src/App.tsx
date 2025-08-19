@@ -3,7 +3,7 @@ import Login from './components/Login'
 import Dashboard from './components/Dashboard'
 import AuthGate from './components/AuthGate'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
-import ProjectPage from './pages/ProjectPage'
+import ProjectPage from './components/ProjectPage'
 
 export default function App() {
   return (
