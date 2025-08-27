@@ -147,8 +147,8 @@ export default forwardRef<MapViewApi, {
         <button onClick={toggleFullscreen} className="btn-map">
           {isFullscreen ? '⛶ Salir' : '⛶ Pantalla completa'}
         </button>
-        <button onClick={exportVisibleAsKMZ} className="btn-map bg-blue-600 text-white">⬇️ KMZ</button>
-        <button onClick={exportAsPDF} className="btn-map bg-indigo-600 text-white">🖨️ PDF</button>
+        <button onClick={exportVisibleAsKMZ} className="btn-map bg-[#2563eb] hover:bg-[#1e40af] text-white">⬇️ KMZ</button>
+        <button onClick={exportAsPDF} className="btn-map bg-[#4f46e5] hover:bg-[#3730a3] text-white">🖨️ PDF</button>
       </div>
 
       {/* Mapa */}
@@ -201,10 +201,10 @@ export default forwardRef<MapViewApi, {
               key={l.id}
               data={l.geojson as any}
               style={() => ({
-                color: st?.color ?? '#1f2937',
+                color: st?.color ?? '#374151',       // gris en HEX
                 weight: st?.weight ?? 2,
                 opacity: st?.opacity ?? 1,
-                fillColor: st?.fillColor ?? '#1f2937',
+                fillColor: st?.fillColor ?? '#1f2937', // gris oscuro HEX
                 fillOpacity: st?.fillOpacity ?? 0.2,
               })}
               pointToLayer={(_f, latlng) => L.circleMarker(latlng, { radius: st?.radius ?? 5 })}
