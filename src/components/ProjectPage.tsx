@@ -20,8 +20,11 @@ export default function ProjectPage() {
   const [msg, setMsg] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
 
-  // referencia local al mapa
+  // referencia al mapa
   const mapApi = useRef<MapViewApi>(null)
+
+  // toggle menú WMS en móviles
+  const [showWms, setShowWms] = useState(false)
 
   async function loadLayers() {
     if (!projectId) return
@@ -130,13 +133,12 @@ export default function ProjectPage() {
   return (
     <div className="wrap">
       <div
-        className="card"
-        style={{ width: "min(1400px, 98vw)", display: "flex" }}
+        className="card flex flex-col lg:flex-row"
+        style={{ width: "min(1400px, 98vw)" }}
       >
-        {/* Columna izquierda */}
-        <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-          
-          {/* 🔹 Encabezado responsive */}
+        {/* Columna izquierda (móvil: toda la columna) */}
+        <div className="flex-1 flex flex-col">
+          {/* Encabezado */}
           <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-3">
             <Link
               to="/"
@@ -157,21 +159,9 @@ export default function ProjectPage() {
             </div>
           </div>
 
-          {loading && (
-            <div className="hint" style={{ color: "#2563eb", marginBottom: 8 }}>
-              ⏳ Cargando capas...
-            </div>
-          )}
-          {err && (
-            <div className="hint" style={{ color: "#b91c1c", marginBottom: 8 }}>
-              {err}
-            </div>
-          )}
-          {msg && (
-            <div className="hint" style={{ color: "#065f46", marginBottom: 8 }}>
-              {msg}
-            </div>
-          )}
+          {loading && <div className="hint text-blue-600 mb-2">⏳ Cargando capas...</div>}
+          {err && <div className="hint text-red-700 mb-2">{err}</div>}
+          {msg && <div className="hint text-green-700 mb-2">{msg}</div>}
 
           <LayerList
             layers={layers}
@@ -187,16 +177,47 @@ export default function ProjectPage() {
             onLocalChange={(id, patch) => onStyleLocalChange(id, patch, false)}
           />
 
+          {/* Mapa */}
           <div style={{ flex: 1, minHeight: "500px" }}>
             <MapView ref={mapApi} layers={layers} visible={visible} styles={styles} />
           </div>
         </div>
 
-        {/* Columna derecha: Panel de WMS */}
-        <div className="w-80 bg-[#1e293b] border-l border-gray-700">
+        {/* Panel derecho (solo en desktop) */}
+        <div className="hidden lg:block w-80 bg-[#1e293b] border-l border-gray-700">
           <WMSLayerPanel mapRef={mapApi} />
         </div>
       </div>
+
+      {/* Botón hamburguesa en móviles */}
+      <button
+        onClick={() => setShowWms(true)}
+        className="lg:hidden fixed bottom-4 right-4 z-40 bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg shadow"
+      >
+        🌐 Capas externas
+      </button>
+
+      {/* Drawer móvil */}
+      {showWms && (
+        <div className="fixed inset-0 z-50 flex">
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50"
+            onClick={() => setShowWms(false)}
+          ></div>
+          <aside className="relative w-72 bg-[#1e293b] h-full p-4 shadow-xl z-50 overflow-y-auto">
+            <div className="flex justify-between items-center mb-4 text-white">
+              <h2 className="font-semibold">Capas externas</h2>
+              <button
+                onClick={() => setShowWms(false)}
+                className="text-gray-400 hover:text-gray-200"
+              >
+                ✕
+              </button>
+            </div>
+            <WMSLayerPanel mapRef={mapApi} />
+          </aside>
+        </div>
+      )}
     </div>
   )
 }
