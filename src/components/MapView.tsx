@@ -8,7 +8,7 @@ import type { ProjectLayer, LayerStyle } from '../types'
 import JSZip from 'jszip'
 import tokml from 'tokml'
 import jsPDF from 'jspdf'
-import html2canvas from 'html2canvas'
+import leafletImage from 'leaflet-image'   // 👈 con types definidos en src/types
 
 export type MapViewApi = { 
   zoomTo: (gj: any) => void
@@ -22,7 +22,6 @@ export default forwardRef<MapViewApi, {
   styles: Record<string, LayerStyle>
 }>(function MapView({ layers, visible, styles }, ref) {
   const mapRef = useRef<LeafletMap | null>(null)
-  const mapBoxRef = useRef<HTMLDivElement | null>(null)
   const [wmsLayers, setWmsLayers] = useState<L.Layer[]>([])
 
   const chileCenter = useMemo(() => ({ lat: -33.45, lng: -70.65 }), [])
@@ -68,7 +67,7 @@ export default forwardRef<MapViewApi, {
 
   const [isFullscreen, setIsFullscreen] = useState(false)
   function toggleFullscreen() {
-    const el = mapBoxRef.current
+    const el = mapRef.current?.getContainer() // 👈 en vez de _container
     if (!el) return
     if (!document.fullscreenElement) {
       el.requestFullscreen?.()
@@ -79,7 +78,7 @@ export default forwardRef<MapViewApi, {
     }
   }
 
-  // --- Exportar
+  // --- Exportar KMZ
   async function exportVisibleAsKMZ() {
     try {
       const active = layers.filter(l => visible[l.id])
@@ -108,38 +107,40 @@ export default forwardRef<MapViewApi, {
     }
   }
 
+  // --- Exportar PDF usando leaflet-image
   async function exportAsPDF() {
     try {
-      if (!mapBoxRef.current) { alert('No se encontró el contenedor del mapa.'); return }
-      const canvas = await html2canvas(mapBoxRef.current, { useCORS: true, backgroundColor: '#ffffff', scale: 2 })
-      const imgData = canvas.toDataURL('image/png')
+      if (!mapRef.current) { 
+        alert("No se encontró el mapa."); 
+        return 
+      }
 
-      const pdf = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' })
-      const pageW = pdf.internal.pageSize.getWidth()
-      const pageH = pdf.internal.pageSize.getHeight()
-      const margin = 24
-      const imgW = pageW - margin * 2
-      const imgH = imgW * (canvas.height / canvas.width)
-      const yStart = 60
+      leafletImage(mapRef.current, (err: any, canvas: HTMLCanvasElement) => {
+        if (err) {
+          console.error(err)
+          alert("No se pudo exportar el mapa a PDF")
+          return
+        }
 
-      pdf.setFont('helvetica', 'bold'); pdf.setFontSize(16)
-      pdf.text('Pudumaps — Export', margin, 32)
-      pdf.addImage(imgData, 'PNG', margin, yStart, imgW, Math.min(imgH, pageH - yStart - 100))
+        const imgData = canvas.toDataURL("image/png")
+        const pdf = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" })
+        const pageW = pdf.internal.pageSize.getWidth()
+        const pageH = pdf.internal.pageSize.getHeight()
 
-      pdf.setFont('helvetica', 'normal'); pdf.setFontSize(11)
-      const vis = layers.filter(l => visible[l.id]).map(l => `• ${l.name}`).join('\n') || '— (sin capas visibles)'
-      pdf.text('Capas visibles:', margin, pageH - 70)
-      const textLines = pdf.splitTextToSize(vis, pageW - margin * 2)
-      pdf.text(textLines, margin, pageH - 52)
+        const imgW = pageW
+        const imgH = (canvas.height / canvas.width) * pageW
 
-      pdf.save(`pudumaps_${Date.now()}.pdf`)
+        pdf.addImage(imgData, "PNG", 0, 0, imgW, imgH)
+        pdf.save(`pudumaps_${Date.now()}.pdf`)
+      })
     } catch (e: any) {
-      console.error(e); alert('No se pudo exportar PDF: ' + (e?.message || e))
+      console.error(e)
+      alert("No se pudo exportar PDF: " + (e?.message || e))
     }
   }
 
   return (
-    <div ref={mapBoxRef} className="relative w-full rounded-xl border shadow-lg overflow-hidden">
+    <div className="relative w-full rounded-xl border shadow-lg overflow-hidden">
       {/* Toolbar flotante responsive */}
       <div className="absolute top-2 left-2 z-[1000] flex flex-wrap gap-1 sm:gap-2 justify-center p-2 bg-white/90 backdrop-blur rounded-lg shadow-md max-w-[90vw]">
         <button onClick={fitChile} className="btn-map">↺ Chile</button>
@@ -201,10 +202,10 @@ export default forwardRef<MapViewApi, {
               key={l.id}
               data={l.geojson as any}
               style={() => ({
-                color: st?.color ?? '#374151',       // gris en HEX
+                color: st?.color ?? '#374151',
                 weight: st?.weight ?? 2,
                 opacity: st?.opacity ?? 1,
-                fillColor: st?.fillColor ?? '#1f2937', // gris oscuro HEX
+                fillColor: st?.fillColor ?? '#1f2937',
                 fillOpacity: st?.fillOpacity ?? 0.2,
               })}
               pointToLayer={(_f, latlng) => L.circleMarker(latlng, { radius: st?.radius ?? 5 })}
