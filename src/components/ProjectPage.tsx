@@ -189,22 +189,32 @@ export default function ProjectPage() {
         </div>
       </div>
 
-      {/* Botón hamburguesa en móviles */}
+      {/* FAB en móviles */}
       <button
         onClick={() => setShowWms(true)}
-        className="lg:hidden fixed bottom-4 right-4 z-40 bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg shadow"
+        className="lg:hidden fixed top-4 right-4 z-[1500] w-12 h-12 flex items-center justify-center rounded-full bg-green-600 hover:bg-green-700 text-white shadow-lg transition"
+        aria-label="Capas externas"
       >
-        🌐 Capas externas
+        🌐
       </button>
 
-      {/* Drawer móvil */}
+      {/* Drawer móvil con animación */}
       {showWms && (
-        <div className="fixed inset-0 z-50 flex">
+        <div className="fixed inset-0 z-[2000] flex">
+          {/* Fondo oscuro */}
           <div
             className="fixed inset-0 bg-black bg-opacity-50"
             onClick={() => setShowWms(false)}
           ></div>
-          <aside className="relative w-72 bg-[#1e293b] h-full p-4 shadow-xl z-50 overflow-y-auto">
+
+          {/* Panel deslizable */}
+          <aside
+            className={`
+              relative w-72 bg-[#1e293b] h-full p-4 shadow-xl z-[2000] overflow-y-auto
+              transform transition-transform duration-300 ease-in-out
+              ${showWms ? "translate-x-0" : "translate-x-full"}
+            `}
+          >
             <div className="flex justify-between items-center mb-4 text-white">
               <h2 className="font-semibold">Capas externas</h2>
               <button
