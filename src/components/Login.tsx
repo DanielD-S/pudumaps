@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { supabase } from "../lib/supabase"
+import pudulogo from "../assets/pudulogo.png"   // 👈 import logo
 
 export default function Login() {
   const [email, setEmail] = useState("")
@@ -12,15 +13,8 @@ export default function Login() {
     setLoading(true)
     setError(null)
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
-
-    if (error) {
-      setError(error.message)
-    }
-
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    if (error) setError(error.message)
     setLoading(false)
   }
 
@@ -28,15 +22,8 @@ export default function Login() {
     setLoading(true)
     setError(null)
 
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-    })
-
-    if (error) {
-      setError(error.message)
-    }
-
+    const { error } = await supabase.auth.signUp({ email, password })
+    if (error) setError(error.message)
     setLoading(false)
   }
 
@@ -44,7 +31,8 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-gray-800 to-black">
       <div className="card max-w-md w-full">
         <div className="text-center mb-6">
-          <span className="text-4xl">🌿</span>
+          {/* 👇 Logo en vez del emoji */}
+          <img src={pudulogo} alt="Pudumaps logo" className="w-16 h-16 mx-auto" />
           <h1 className="text-2xl font-bold mt-2">Pudumaps</h1>
           <p className="text-gray-400 text-sm">Inicia sesión en tu cuenta</p>
         </div>
