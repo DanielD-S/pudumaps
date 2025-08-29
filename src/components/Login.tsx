@@ -76,14 +76,14 @@ export default function Login() {
 
           {error && <p className="text-red-400 text-sm">{error}</p>}
 
-          <button type="submit" className="btn btn-primary" disabled={loading}>
+          <button type="submit" className="btn btn-primary w-full" disabled={loading}>
             {loading ? "Entrando..." : "Entrar"}
           </button>
 
           <button
             type="button"
             onClick={handleSignup}
-            className="btn btn-secondary"
+            className="btn btn-secondary w-full"
             disabled={loading}
           >
             {loading ? "Creando..." : "Crear cuenta"}
@@ -93,6 +93,17 @@ export default function Login() {
         <p className="text-center text-gray-500 text-sm mt-6">
           ¿Primera vez? <span className="text-green-400">Crea tu cuenta</span> y revisa tu correo para confirmar.
         </p>
+
+        {/* 👇 Roadmap breve */}
+        <div className="mt-8 border-t border-gray-700 pt-4 text-sm text-gray-400">
+          <h3 className="text-gray-200 font-semibold mb-2">🚀 Roadmap Pudumaps</h3>
+          <ul className="list-disc list-inside space-y-1">
+            <li>Soporte para ArcGIS REST</li>
+            <li>Capas colaborativas con permisos</li>
+            <li>Herramientas de medición y dibujo</li>
+            <li>Exportación completa de proyectos</li>
+          </ul>
+        </div>
       </div>
     </div>
   )
