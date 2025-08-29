@@ -94,15 +94,38 @@ export default function Login() {
           ¿Primera vez? <span className="text-green-400">Crea tu cuenta</span> y revisa tu correo para confirmar.
         </p>
 
-        {/* 👇 Roadmap breve */}
+        {/* 🚀 Roadmap estático */}
         <div className="mt-8 border-t border-gray-700 pt-4 text-sm text-gray-400">
-          <h3 className="text-gray-200 font-semibold mb-2">🚀 Roadmap Pudumaps</h3>
-          <ul className="list-disc list-inside space-y-1">
-            <li>Soporte para ArcGIS REST</li>
-            <li>Capas colaborativas con permisos</li>
-            <li>Herramientas de medición y dibujo</li>
-            <li>Exportación completa de proyectos</li>
-          </ul>
+          <h3 className="text-gray-200 font-semibold mb-3">🚀 Roadmap Pudumaps</h3>
+
+          <div className="space-y-3">
+            <div>
+              <h4 className="text-gray-300 font-medium">✅ Ahora</h4>
+              <ul className="list-disc list-inside">
+                <li>Capas GeoJSON con estilos editables</li>
+                <li>Capas externas WMS</li>
+                <li>Exportación a KMZ y PDF</li>
+              </ul>
+            </div>
+
+            <div>
+              <h4 className="text-gray-300 font-medium">⏳ Próximo</h4>
+              <ul className="list-disc list-inside">
+                <li>Soporte ArcGIS REST</li>
+                <li>Herramientas de medición y dibujo</li>
+                <li>Roles y permisos por proyecto</li>
+              </ul>
+            </div>
+
+            <div>
+              <h4 className="text-gray-300 font-medium">🌌 Futuro</h4>
+              <ul className="list-disc list-inside">
+                <li>Compartir proyectos públicos</li>
+                <li>Estadísticas y filtros por atributos</li>
+                <li>Infraestructura optimizada para grandes capas</li>
+              </ul>
+            </div>
+          </div>
         </div>
       </div>
     </div>
