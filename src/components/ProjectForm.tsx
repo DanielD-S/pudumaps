@@ -3,35 +3,37 @@ import { supabase } from "../lib/supabase"
 
 interface Props {
   onProjectCreated: () => void
+  onNotify?: (msg: string, type?: "success" | "error" | "info") => void
 }
 
-export default function ProjectForm({ onProjectCreated }: Props) {
+export default function ProjectForm({ onProjectCreated, onNotify }: Props) {
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
   const [loading, setLoading] = useState(false)
 
-  // 🟢 Crear proyecto
   async function createProject() {
-    if (!name) return alert("Debes ponerle un nombre")
+    if (!name) {
+      onNotify?.("❌ El proyecto debe tener un nombre", "error")
+      return
+    }
     setLoading(true)
 
-    // Obtener usuario actual
     const { data: { user } } = await supabase.auth.getUser()
 
     const { error } = await supabase
       .from("projects")
-      .insert([{ 
-        name, 
-        description, 
-        owner_id: user?.id 
-      }])
+      .insert([{ name, description, owner_id: user?.id }])
 
     setLoading(false)
-    if (error) return alert(error.message)
+    if (error) {
+      onNotify?.("❌ No se pudo crear el proyecto", "error")
+      return
+    }
 
     setName("")
     setDescription("")
     onProjectCreated()
+    onNotify?.("✅ Proyecto creado", "success")
   }
 
   return (
@@ -42,14 +44,14 @@ export default function ProjectForm({ onProjectCreated }: Props) {
         type="text"
         placeholder="Nombre del proyecto"
         value={name}
-        onChange={e => setName(e.target.value)}
+        onChange={(e) => setName(e.target.value)}
         className="input"
       />
       <input
         type="text"
         placeholder="Descripción (ej: Capas base de Chile)"
         value={description}
-        onChange={e => setDescription(e.target.value)}
+        onChange={(e) => setDescription(e.target.value)}
         className="input"
       />
 

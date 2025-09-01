@@ -141,10 +141,14 @@ export default function ProjectPage() {
           {/* Encabezado */}
           <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-3">
             <Link
-              to="/"
-              className="text-blue-400 hover:underline text-sm sm:text-base"
+              to="/dashboard"
+              className="inline-flex items-center gap-2 px-3 py-1.5 
+             text-sm font-medium text-white 
+             bg-gray-700 hover:bg-gray-600 
+             rounded-lg shadow transition"
             >
-              ← Volver
+              <span className="text-lg">←</span>
+              Volver
             </Link>
             <h2 className="title text-lg sm:text-xl">Proyecto</h2>
             <div className="sm:ml-auto w-full sm:w-auto">

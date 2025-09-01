@@ -12,13 +12,16 @@
     "deploy": "gh-pages -d dist"
   },
   "dependencies": {
+    "@geoman-io/leaflet-geoman-free": "^2.18.3",
     "@supabase/supabase-js": "^2.45.4",
     "@tmcw/togeojson": "^7.1.2",
+    "@turf/turf": "^7.2.0",
     "esri-leaflet": "^3.0.18",
     "html2canvas": "^1.4.1",
     "jspdf": "^3.0.1",
     "jszip": "^3.10.1",
     "leaflet": "^1.9.4",
+    "leaflet-geometryutil": "^0.10.3",
     "leaflet-image": "^0.4.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

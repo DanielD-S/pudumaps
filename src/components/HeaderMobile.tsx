@@ -1,5 +1,6 @@
 import { supabase } from "../lib/supabase"
-import pudulogo from "../assets/pudulogo.png"   // 👈 Importamos el logo
+import pudulogo from "../assets/pudulogo.png"
+import { useNavigate } from "react-router-dom"
 
 interface HeaderMobileProps {
   email?: string
@@ -7,9 +8,19 @@ interface HeaderMobileProps {
 }
 
 export default function HeaderMobile({ email, onLogout }: HeaderMobileProps) {
+  const navigate = useNavigate()
+
   async function handleLogout() {
-    await supabase.auth.signOut()
+    try {
+      await supabase.auth.signOut()
+    } catch (err) {
+      console.error("Error cerrando sesión:", err)
+    }
+
     if (onLogout) onLogout()
+
+    // 👇 Redirige al login
+    navigate("/login", { replace: true })
   }
 
   return (

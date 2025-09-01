@@ -3,29 +3,34 @@ import { supabase } from "../lib/supabase"
 import ProjectCard from "./ProjectCard"
 import ProjectForm from "./ProjectForm"
 import Toast from "./Toast"
+import ConfirmModal from "./ConfirmModal"
 
 type Project = {
   id: string
   name: string
   description?: string
   owner_id?: string
+  is_favorite?: boolean
 }
 
 export default function Dashboard({ email }: { email: string }) {
   const [projects, setProjects] = useState<Project[]>([])
   const [toast, setToast] = useState<{ msg: string; type?: "success" | "error" | "info" } | null>(null)
+  const [confirming, setConfirming] = useState<string | null>(null)
+  const [search, setSearch] = useState("")
 
-  // 🔄 Mostrar toast temporal
+  // 🔄 Mostrar toast
   function showToast(msg: string, type: "success" | "error" | "info" = "info") {
     setToast({ msg, type })
   }
 
-  // 🔄 Cargar proyectos
+  // 🔄 Cargar proyectos (favoritos primero ⭐)
   async function loadProjects() {
     const { data, error } = await supabase
       .from("projects")
-      .select("id, name, description, owner_id")
-      .order("created_at", { ascending: false })
+      .select("id, name, description, owner_id, is_favorite")
+      .order("is_favorite", { ascending: false }) // ⭐ primero
+      .order("created_at", { ascending: false })  // luego más nuevos
 
     if (error) {
       showToast("❌ No se pudieron cargar los proyectos", "error")
@@ -35,10 +40,24 @@ export default function Dashboard({ email }: { email: string }) {
     if (data) setProjects(data)
   }
 
+  // ⭐ Alternar favorito
+  async function toggleFavorite(id: string, current: boolean = false) {
+    const { error } = await supabase
+      .from("projects")
+      .update({ is_favorite: !current })
+      .eq("id", id)
+
+    if (error) {
+      showToast("❌ No se pudo actualizar favorito", "error")
+      return
+    }
+
+    loadProjects()
+    showToast(!current ? "⭐ Proyecto marcado como favorito" : "⭐ Proyecto quitado de favoritos", "success")
+  }
+
   // ❌ Eliminar proyecto
   async function deleteProject(id: string) {
-    const ok = confirm("¿Eliminar proyecto?")
-    if (!ok) return
     const { error } = await supabase.from("projects").delete().eq("id", id)
     if (error) {
       showToast("❌ Error al eliminar proyecto", "error")
@@ -51,12 +70,20 @@ export default function Dashboard({ email }: { email: string }) {
   // 🔴 Cerrar sesión
   async function signOut() {
     await supabase.auth.signOut()
-    window.location.reload()
+    showToast("👋 Sesión cerrada", "info")
+    setTimeout(() => window.location.reload(), 1000)
   }
 
   useEffect(() => {
     loadProjects()
   }, [])
+
+  // 🔍 Filtrar proyectos
+  const filteredProjects = projects.filter(
+    (p) =>
+      p.name.toLowerCase().includes(search.toLowerCase()) ||
+      (p.description?.toLowerCase() || "").includes(search.toLowerCase())
+  )
 
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 p-6 relative">
@@ -79,36 +106,67 @@ export default function Dashboard({ email }: { email: string }) {
             <h1 className="title">Sesión iniciada en Pudumaps</h1>
             <p className="text-muted">{email}</p>
           </div>
-          <button
-            onClick={signOut}
-            className="btn btn-danger"
-          >
+          <button onClick={signOut} className="btn btn-danger">
             Cerrar sesión
           </button>
         </div>
 
         {/* Formulario de creación */}
-        <ProjectForm onProjectCreated={() => { loadProjects(); showToast("✅ Proyecto creado", "success") }} />
+        <ProjectForm
+          onProjectCreated={() => {
+            loadProjects()
+            showToast("✅ Proyecto creado", "success")
+          }}
+          onNotify={showToast}
+        />
+
+        {/* Buscador */}
+        <div>
+          <input
+            type="text"
+            placeholder="🔍 Buscar proyectos..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="input w-full"
+          />
+        </div>
 
         {/* Lista de proyectos */}
         <div className="space-y-3">
-          {projects.map(p => (
+          {filteredProjects.map((p) => (
             <ProjectCard
               key={p.id}
               id={p.id}
               name={p.name}
               description={p.description}
-              onDelete={deleteProject}
+              isFavorite={p.is_favorite ?? false}
+              onDelete={(id) => setConfirming(id)}
+              onUpdated={() => {
+                loadProjects()
+                showToast("✅ Proyecto actualizado", "success")
+              }}
+              onToggleFavorite={() => toggleFavorite(p.id, p.is_favorite ?? false)}
+              onNotify={showToast}
             />
           ))}
 
-          {projects.length === 0 && (
-            <p className="text-muted text-center">
-              No tienes proyectos aún.
-            </p>
+          {filteredProjects.length === 0 && (
+            <p className="text-muted text-center">No se encontraron proyectos.</p>
           )}
         </div>
       </div>
+
+      {/* Modal de confirmación */}
+      {confirming && (
+        <ConfirmModal
+          message="¿Seguro que deseas eliminar este proyecto?"
+          onCancel={() => setConfirming(null)}
+          onConfirm={() => {
+            deleteProject(confirming)
+            setConfirming(null)
+          }}
+        />
+      )}
     </div>
   )
 }

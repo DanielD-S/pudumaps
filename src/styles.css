@@ -53,42 +53,80 @@ body {
     @apply text-sm text-gray-400;
   }
 
-  /* ==== Overrides para Leaflet ==== */
-  .leaflet-control {
-    border: none !important;
-    background: transparent !important;
-    box-shadow: none !important;
-  }
-
-  .leaflet-bar {
-    @apply flex gap-2 bg-gray-800/80 p-2 rounded-xl shadow-lg;
-    border: none !important;
-  }
-
-  .leaflet-bar a,
-  .leaflet-bar button {
-    @apply bg-gray-700 border border-gray-600 text-gray-100 text-sm px-3 py-1 rounded-lg transition;
-  }
-
-  .leaflet-bar a:hover,
-  .leaflet-bar button:hover {
-    @apply bg-blue-600 text-white scale-105;
-  }
-
-  .leaflet-bar a:active,
-  .leaflet-bar button:active {
-    @apply scale-95;
-  }
-
-  /* Mover el control de capas más abajo */
-  .leaflet-control-layers {
-    margin-top: 80px !important;
-  }
+/* ==== Overrides para Leaflet ==== */
+.leaflet-control {
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
 }
+
+/* Contenedor de botones (zoom, capas, etc.) */
+.leaflet-bar {
+  @apply flex flex-col bg-gray-800/80 p-1 rounded-xl shadow-lg;
+  border: none !important;
+}
+
+/* Botones individuales (ej: + y - del zoom) */
+.leaflet-bar a,
+.leaflet-bar button {
+  @apply bg-gray-700 border border-gray-600 text-gray-100 text-base 
+         w-8 h-8 flex items-center justify-center rounded-md transition;
+}
+
+/* Hover y active */
+.leaflet-bar a:hover,
+.leaflet-bar button:hover {
+  @apply bg-blue-600 text-white scale-105;
+}
+.leaflet-bar a:active,
+.leaflet-bar button:active {
+  @apply scale-95;
+}
+
+/* Control de capas (mover más abajo para no chocar con toolbar) */
+.leaflet-control-layers {
+  margin-top: 80px !important;
+  @apply bg-gray-800/90 text-gray-100 rounded-lg shadow-md;
+}
+
+/* Control de escala (abajo izquierda) */
+.leaflet-control-scale {
+  @apply bg-gray-800/80 text-gray-100 border border-gray-700 
+         rounded-md px-2 py-1 text-xs shadow-md;
+}
+}
+
 @keyframes fade-in-up {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
 }
 .animate-fade-in-up {
   animation: fade-in-up 0.3s ease-out;
+}
+/* --- Botones del mapa (toolbar flotante) --- */
+.btn-map {
+  @apply px-2 sm:px-3 py-1 rounded-md font-medium text-sm
+         bg-slate-800/80 hover:bg-slate-700 
+         text-white drop-shadow-md transition;
+}
+
+/* Estado activo (ej: herramienta de dibujo seleccionada) */
+.btn-map-active {
+  @apply bg-green-600 hover:bg-green-700 text-white;
+}
+
+/* Estado de peligro (ej: cancelar dibujo) */
+.btn-map-danger {
+  @apply bg-red-600 hover:bg-red-700 text-white;
+}
+
+/* Exportaciones (colores diferenciados) */
+.btn-map-export {
+  @apply text-white font-semibold;
+}
+.btn-map-kmz {
+  @apply bg-blue-600 hover:bg-blue-700;
+}
+.btn-map-pdf {
+  @apply bg-indigo-600 hover:bg-indigo-700;
 }

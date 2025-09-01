@@ -15,12 +15,12 @@ interface LayerEntry {
   visible: boolean
 }
 
-// --- capas predefinidas ---
+// --- capas predefinidas (Sernageomin) ---
 const predefinedLayers: LayerEntry[] = [
   {
-    id: "sernageomin-mineria",
+    id: "sernageomin-mineria-19s",
     url: "https://catastromineronline.sernageomin.cl/arcgismin/services/MINERIA/WMS_PROPIEDAD_MINERA_19S/MapServer/WMSServer",
-    name: "0,1,2,3", // todas las subcapas disponibles
+    name: "🌐 WMS Minero 19S",
     layer: L.tileLayer.wms(
       "https://catastromineronline.sernageomin.cl/arcgismin/services/MINERIA/WMS_PROPIEDAD_MINERA_19S/MapServer/WMSServer",
       {
@@ -30,7 +30,22 @@ const predefinedLayers: LayerEntry[] = [
         version: "1.3.0",
       }
     ),
-    visible: false, // precargada pero apagada
+    visible: false,
+  },
+  {
+    id: "sernageomin-mineria-18s",
+    url: "https://catastromineronline.sernageomin.cl/arcgismin/services/MINERIA/WMS_PROPIEDAD_MINERA_18S/MapServer/WMSServer",
+    name: "🌐 WMS Minero 18S",
+    layer: L.tileLayer.wms(
+      "https://catastromineronline.sernageomin.cl/arcgismin/services/MINERIA/WMS_PROPIEDAD_MINERA_18S/MapServer/WMSServer",
+      {
+        layers: "0,1,2,3",
+        format: "image/png",
+        transparent: true,
+        version: "1.3.0",
+      }
+    ),
+    visible: false,
   },
 ]
 
@@ -79,6 +94,8 @@ export default function WMSLayerPanel({ mapRef }: Props) {
         { id, url: serviceUrl, name: layerName || "0", layer, visible: true },
       ])
       showMsg("success", "✅ Capa cargada correctamente")
+      setUrl("")
+      setLayerName("")
     } catch (e) {
       console.error(e)
       showMsg("error", "❌ Error al cargar la capa")
@@ -96,9 +113,7 @@ export default function WMSLayerPanel({ mapRef }: Props) {
           if (entry.visible && entry.layer) {
             map.removeLayer(entry.layer)
           } else {
-            if (entry.layer) {
-              entry.layer.addTo(map)
-            }
+            if (entry.layer) entry.layer.addTo(map)
           }
           return { ...entry, visible: !entry.visible }
         }
@@ -114,41 +129,44 @@ export default function WMSLayerPanel({ mapRef }: Props) {
 
     setLayers((prev) => {
       const entry = prev.find((e) => e.id === id)
-      if (entry && entry.layer) {
-        map.removeLayer(entry.layer)
-      }
+      if (entry && entry.layer) map.removeLayer(entry.layer)
       return prev.filter((e) => e.id !== id)
     })
   }
 
   return (
-    <div className="p-4 text-white bg-[#1e293b] h-full flex flex-col">
-      <h2 className="text-lg font-semibold mb-3">🌐 Capas externas</h2>
+    <div className="p-5 text-white bg-[#1e293b] h-full flex flex-col rounded-lg">
+      <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+        🌐 Capas externas
+      </h2>
 
       {/* Input manual */}
-      <div className="flex flex-col gap-2 mb-3">
+      <div className="flex flex-col gap-3 mb-4">
         <input
           type="text"
           value={url}
           onChange={(e) => setUrl(e.target.value)}
-          placeholder="URL WMS"
-          className="px-2 py-1 rounded text-black"
+          placeholder="🔗 URL WMS"
+          className="px-3 py-2 rounded-md text-white border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
         <input
           type="text"
           value={layerName}
           onChange={(e) => setLayerName(e.target.value)}
-          placeholder="Nombre/ID de capa (ej: 0 o 0,1,2)"
-          className="px-2 py-1 rounded text-black"
+          placeholder="📌 Nombre/ID de capa (ej: 0 o 0,1,2)"
+          className="px-3 py-2 rounded-md text-white border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
-        <button onClick={addLayer} className="bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded">
-          Agregar
+        <button
+          onClick={addLayer}
+          className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-md font-medium shadow transition"
+        >
+          ➕ Agregar
         </button>
       </div>
 
       {msg.type && (
         <div
-          className={`mb-3 text-sm px-2 py-1 rounded ${
+          className={`mb-4 text-sm px-3 py-2 rounded-md font-medium ${
             msg.type === "loading"
               ? "bg-yellow-600"
               : msg.type === "success"
@@ -161,34 +179,66 @@ export default function WMSLayerPanel({ mapRef }: Props) {
       )}
 
       {/* Lista de capas */}
-      <h3 className="text-md font-medium mb-2">Capas activas</h3>
-      <ul className="space-y-2">
-        {layers.length === 0 && <li className="text-gray-400 text-sm">No hay capas cargadas</li>}
-        {layers.map((entry) => (
-          <li
-            key={entry.id}
-            className="flex justify-between items-center bg-gray-700 px-2 py-1 rounded"
-          >
-            <label className="flex items-center gap-2 truncate">
-              <input
-                type="checkbox"
-                checked={entry.visible}
-                onChange={() => toggleVisibility(entry.id)}
-              />
-              {entry.name}
-            </label>
-            {/* Solo capas manuales pueden eliminarse */}
-            {!predefinedLayers.find((pl) => pl.id === entry.id) && (
-              <button
-                onClick={() => removeLayer(entry.id)}
-                className="bg-red-600 hover:bg-red-700 px-2 py-0.5 rounded text-sm"
+      <h3 className="text-md font-semibold mb-3">📋 Capas activas</h3>
+
+      {/* Grupo Sernageomin */}
+      <div className="mb-4">
+        <h4 className="text-sm font-medium text-gray-300 mb-2">Capas Sernageomin</h4>
+        <ul className="space-y-2">
+          {layers
+            .filter((entry) => predefinedLayers.find((pl) => pl.id === entry.id))
+            .map((entry) => (
+              <li
+                key={entry.id}
+                className="flex justify-between items-center bg-gray-800 hover:bg-gray-700 px-3 py-2 rounded-md transition"
               >
-                ✕
-              </button>
-            )}
-          </li>
-        ))}
-      </ul>
+                <label className="flex items-center gap-2 truncate">
+                  <input
+                    type="checkbox"
+                    checked={entry.visible}
+                    onChange={() => toggleVisibility(entry.id)}
+                    className="accent-blue-500"
+                  />
+                  <span className="truncate">{entry.name}</span>
+                </label>
+              </li>
+            ))}
+        </ul>
+      </div>
+
+      {/* Grupo manual */}
+      <div>
+        <h4 className="text-sm font-medium text-gray-300 mb-2">Capas agregadas manualmente</h4>
+        <ul className="space-y-2">
+          {layers.filter((entry) => !predefinedLayers.find((pl) => pl.id === entry.id)).length === 0 && (
+            <li className="text-gray-400 text-sm italic">No hay capas manuales</li>
+          )}
+          {layers
+            .filter((entry) => !predefinedLayers.find((pl) => pl.id === entry.id))
+            .map((entry) => (
+              <li
+                key={entry.id}
+                className="flex justify-between items-center bg-gray-800 hover:bg-gray-700 px-3 py-2 rounded-md transition"
+              >
+                <label className="flex items-center gap-2 truncate">
+                  <input
+                    type="checkbox"
+                    checked={entry.visible}
+                    onChange={() => toggleVisibility(entry.id)}
+                    className="accent-blue-500"
+                  />
+                  <span className="truncate">{entry.name}</span>
+                </label>
+                <button
+                  onClick={() => removeLayer(entry.id)}
+                  className="bg-red-600 hover:bg-red-700 px-2 py-1 rounded text-xs"
+                >
+                  ✕
+                </button>
+              </li>
+            ))}
+        </ul>
+      </div>
     </div>
   )
 }

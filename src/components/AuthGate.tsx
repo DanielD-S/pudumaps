@@ -36,6 +36,10 @@ export default function AuthGate({ children, fallback }: Props) {
     )
   }
 
-  if (!session) return <>{fallback}</>
+  // 👇 En vez de Navigate, mostramos el fallback (Login)
+  if (!session) {
+    return <>{fallback}</>
+  }
+
   return <>{children(session)}</>
 }
