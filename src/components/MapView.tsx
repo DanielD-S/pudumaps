@@ -195,15 +195,27 @@ export default forwardRef<MapViewApi, {
           ⛶ <span className="hidden sm:inline ml-1">Pantalla completa</span>
         </button>
         <button
-          onClick={() => {
-            if (mapRef.current && (mapRef.current as any)._measureControl) {
-              (mapRef.current as any)._measureControl.toggle()
-            }
-          }}
-          className="btn-map p-2 sm:px-3 sm:py-1.5 rounded-full sm:rounded-md"
-        >
-          🔍 <span className="hidden sm:inline ml-1">Medir</span>
-        </button>
+  onClick={() => {
+    if (mapRef.current && (mapRef.current as any)._measureControl) {
+      const ctl = (mapRef.current as any)._measureControl
+      console.log("✅ Botón Medir clickeado")
+
+      if (ctl._measuring) {
+        console.log("📏 Finalizando medición actual…")
+        ctl._finishPath()
+      } else {
+        console.log("📐 Iniciando nueva medición (línea/polígono)…")
+        ctl._startMeasure()
+      }
+    } else {
+      console.warn("❌ No se encontró el control de medición en el mapa")
+    }
+  }}
+  className="btn-map p-2 sm:px-3 sm:py-1.5 rounded-full sm:rounded-md"
+>
+  🔍 <span className="hidden sm:inline ml-1">Medir</span>
+</button>
+
 
         {/* Botones de dibujo */}
         <div className="flex flex-wrap gap-2">
