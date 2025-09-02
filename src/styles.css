@@ -150,7 +150,7 @@ body {
   color: #fff !important;
 }
 
-/* Ocultar botón nativo de Leaflet.Measure */
-.leaflet-control-measure {
+/* ✅ Ocultar solo el botón nativo, pero NO la UI */
+.leaflet-control-measure-toggle {
   display: none !important;
 }
