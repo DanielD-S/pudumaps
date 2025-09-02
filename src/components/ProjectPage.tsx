@@ -20,10 +20,12 @@ export default function ProjectPage() {
   const [msg, setMsg] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
 
+  const [role, setRole] = useState<"viewer" | "editor">("viewer") // 👈 nuevo estado
+
   const mapApi = useRef<MapViewApi>(null)
   const [showWms, setShowWms] = useState(false)
 
-  // 🔐 Verificar acceso
+  // 🔐 Verificar acceso y rol
   useEffect(() => {
     async function checkAccess() {
       if (!projectId) return
@@ -38,12 +40,20 @@ export default function ProjectPage() {
         return
       }
 
-      if (data.visibility === "private") {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user || user.id !== data.owner_id) {
-          setErr("🚫 No tienes acceso a este proyecto")
-        }
+      // Todos necesitan login
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        setErr("🚫 Debes iniciar sesión para ver este proyecto")
+        return
       }
+
+      if (user.id === data.owner_id) {
+        setRole("editor") // dueño siempre es editor
+        return
+      }
+
+      // Más adelante: consultar project_members
+      setRole("viewer")
     }
 
     checkAccess()
@@ -131,16 +141,19 @@ export default function ProjectPage() {
               Volver
             </Link>
             <h2 className="title text-lg sm:text-xl">Proyecto</h2>
-            <div className="sm:ml-auto w-full sm:w-auto">
-              <Uploader
-                projectId={projectId!}
-                onLayerAdded={() => {
-                  setMsg("✅ Capa creada")
-                  loadLayers()
-                }}
-                onError={(msg) => setErr(msg)}
-              />
-            </div>
+
+            {role === "editor" && (
+              <div className="sm:ml-auto w-full sm:w-auto">
+                <Uploader
+                  projectId={projectId!}
+                  onLayerAdded={() => {
+                    setMsg("✅ Capa creada")
+                    loadLayers()
+                  }}
+                  onError={(msg) => setErr(msg)}
+                />
+              </div>
+            )}
           </div>
 
           {loading && <div className="hint text-blue-600 mb-2">⏳ Cargando capas...</div>}
@@ -152,17 +165,21 @@ export default function ProjectPage() {
             visible={visible}
             onToggleVisible={(id) => setVisible(prev => ({ ...prev, [id]: !prev[id] }))}
             onZoom={(l: ProjectLayer) => mapApi.current?.zoomTo(l.geojson)}
-            onDelete={(l: ProjectLayer) => {
+            onDelete={role === "editor" ? (l: ProjectLayer) => {
               const ok = confirm(`¿Eliminar la capa "${l.name}"?`)
               if (ok) supabase.from("project_layers").delete().eq("id", l.id).then(() => loadLayers())
-            }}
+            } : () => {}} // 👈 dummy function en viewer
           />
 
-          <LayerStylePanel
-            layers={layers}
-            styles={styles}
-            onLocalChange={(id, patch) => setStyles(prev => ({ ...prev, [id]: { ...prev[id], ...patch } }))}
-          />
+          {role === "editor" && (
+            <LayerStylePanel
+              layers={layers}
+              styles={styles}
+              onLocalChange={(id, patch) =>
+                setStyles(prev => ({ ...prev, [id]: { ...prev[id], ...patch } }))
+              }
+            />
+          )}
 
           <div style={{ flex: 1, minHeight: "500px" }}>
             <MapView ref={mapApi} layers={layers} visible={visible} styles={styles} />
