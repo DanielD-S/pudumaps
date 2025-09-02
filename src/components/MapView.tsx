@@ -35,6 +35,8 @@ export default forwardRef<MapViewApi, {
   const [toast, setToast] = useState<{ msg: string; type?: "success" | "error" | "info" } | null>(null)
 
   const chileCenter = useMemo(() => ({ lat: -33.45, lng: -70.65 }), [])
+  const [measuring, setMeasuring] = useState(false)
+
 
   // Exponer API
   useImperativeHandle(ref, () => ({
@@ -84,17 +86,25 @@ export default forwardRef<MapViewApi, {
     if (!mapRef.current) return
     const map = mapRef.current
 
-    // 👉 Inicializar Leaflet.Measure
-    const measureControl = new (L.Control as any).Measure({
-      primaryLengthUnit: "meters",
-      secondaryLengthUnit: "kilometers",
-      primaryAreaUnit: "sqmeters",
-      secondaryAreaUnit: "hectares",
-      activeColor: "#00bcd4",
-      completedColor: "#4caf50",
-    })
-    measureControl.addTo(map)
-    ;(map as any)._measureControl = measureControl
+   // 👉 Inicializar Leaflet.Measure
+// 👉 Inicializar Leaflet.Measure
+map.whenReady(() => {
+  console.log("✅ Mapa listo, inicializando Leaflet.Measure")
+
+  const measureControl = new (L.Control as any).Measure({
+    primaryLengthUnit: "meters",
+    secondaryLengthUnit: "kilometers",
+    primaryAreaUnit: "sqmeters",
+    secondaryAreaUnit: "hectares",
+    activeColor: "#00bcd4",
+    completedColor: "#4caf50",
+  })
+
+  measureControl.addTo(map)
+  ;(map as any)._measureControl = measureControl
+
+  console.log("✅ Control de medición inicializado", (map as any)._measureControl)
+})
 
     // 👉 Inicializar Geoman
     if (map.pm) {
@@ -194,7 +204,9 @@ export default forwardRef<MapViewApi, {
         <button onClick={toggleFullscreen} className="btn-map p-2 sm:px-3 sm:py-1.5 rounded-full sm:rounded-md">
           ⛶ <span className="hidden sm:inline ml-1">Pantalla completa</span>
         </button>
+        
         <button
+        
   onClick={() => {
     if (mapRef.current && (mapRef.current as any)._measureControl) {
       const ctl = (mapRef.current as any)._measureControl
@@ -203,18 +215,23 @@ export default forwardRef<MapViewApi, {
       if (ctl._measuring) {
         console.log("📏 Finalizando medición actual…")
         ctl._finishPath()
+        setMeasuring(false) // 🔴 volver a estado inactivo
       } else {
         console.log("📐 Iniciando nueva medición (línea/polígono)…")
         ctl._startMeasure()
+        setMeasuring(true) // 🟢 estado activo
       }
     } else {
       console.warn("❌ No se encontró el control de medición en el mapa")
     }
   }}
-  className="btn-map p-2 sm:px-3 sm:py-1.5 rounded-full sm:rounded-md"
+  className={`btn-map p-2 sm:px-3 sm:py-1.5 rounded-full sm:rounded-md ${
+    measuring ? "btn-map-active" : ""
+  }`}
 >
   🔍 <span className="hidden sm:inline ml-1">Medir</span>
 </button>
+
 
 
         {/* Botones de dibujo */}
