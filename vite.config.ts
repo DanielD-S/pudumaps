@@ -3,8 +3,12 @@ import react from "@vitejs/plugin-react"
 
 export default defineConfig({
   plugins: [react()],
-  base: process.env.VITE_BASE || "/", // 👈 dinámico según entorno
+  base: process.env.VITE_BASE || "/", 
   server: {
-    port: 5173, // 👈 mantiene tu puerto local
+    port: 5173,
+    // 👇 importante para que funcione también en local
+    fs: {
+      strict: false,
+    },
   },
 })
