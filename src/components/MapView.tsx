@@ -6,18 +6,15 @@ import {
 import L, { LatLng, LatLngBoundsExpression, Map as LeafletMap } from "leaflet"
 import type { ProjectLayer, LayerStyle } from "../types"
 
-// 👉 Geoman (Leaflet.PM) para dibujo
+import JSZip from "jszip"
+import tokml from "tokml"
+import jsPDF from "jspdf"
+import leafletImage from "leaflet-image"
+
 import "@geoman-io/leaflet-geoman-free"
 import "@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css"
-
-// 👉 Leaflet.Measure para medición rápida
-import "leaflet-measure"
-import "leaflet-measure/dist/leaflet-measure.css"
-
-// 👉 Geometry util para cálculos
 import "leaflet-geometryutil"
 
-// 👉 Toast elegante
 import Toast from "./Toast"
 
 export type MapViewApi = {
@@ -35,8 +32,6 @@ export default forwardRef<MapViewApi, {
   const [toast, setToast] = useState<{ msg: string; type?: "success" | "error" | "info" } | null>(null)
 
   const chileCenter = useMemo(() => ({ lat: -33.45, lng: -70.65 }), [])
-  const [measuring, setMeasuring] = useState(false)
-
 
   // Exponer API
   useImperativeHandle(ref, () => ({
@@ -47,32 +42,32 @@ export default forwardRef<MapViewApi, {
         const b = f.getBounds()
         if (b.isValid())
           mapRef.current.fitBounds(b as LatLngBoundsExpression, { padding: [20, 20] })
-      } catch { }
+      } catch (err) {
+        console.error("❌ Error en zoomTo:", err)
+      }
     },
     get leafletMap() {
       return mapRef.current
     },
   }))
 
-  // --- Función para calcular medidas (Geoman)
-  function getMeasurement(e: any): string {
-    const shape = e.shape || e.layer?.pm?._shape || "Geometry"
-
+  // --- Función para calcular medidas
+  function getMeasurement(layer: any, shape: string): string {
     if (shape === "Polygon") {
-      const area = L.GeometryUtil.geodesicArea(e.layer.getLatLngs()[0])
-      const perimetro = L.GeometryUtil.length(e.layer.getLatLngs()[0])
+      const area = L.GeometryUtil.geodesicArea(layer.getLatLngs()[0])
+      const perimetro = L.GeometryUtil.length(layer.getLatLngs()[0])
       const ha = area / 10000
       return `📐 Polígono → Área: ${ha.toFixed(2)} ha | Perímetro: ${(perimetro / 1000).toFixed(2)} km`
     }
 
     if (shape === "Line") {
-      const latlngs = e.layer.getLatLngs()
+      const latlngs = layer.getLatLngs()
       const length = L.GeometryUtil.length(latlngs)
       return `📏 Línea → ${length < 1000 ? length.toFixed(1) + " m" : (length / 1000).toFixed(2)} km`
     }
 
     if (shape === "Circle") {
-      const radius = e.layer.getRadius()
+      const radius = layer.getRadius()
       const area = Math.PI * radius * radius
       const ha = area / 10000
       return `⭕ Círculo → Radio: ${radius.toFixed(1)} m | Área: ${ha.toFixed(2)} ha`
@@ -81,58 +76,47 @@ export default forwardRef<MapViewApi, {
     return ""
   }
 
-  // --- Inicializar Geoman + Leaflet.Measure
+  // --- Inicializar Geoman
   useEffect(() => {
     if (!mapRef.current) return
     const map = mapRef.current
 
-   // 👉 Inicializar Leaflet.Measure
-// 👉 Inicializar Leaflet.Measure
-map.whenReady(() => {
-  console.log("✅ Mapa listo, inicializando Leaflet.Measure")
-
-  const measureControl = new (L.Control as any).Measure({
-    primaryLengthUnit: "meters",
-    secondaryLengthUnit: "kilometers",
-    primaryAreaUnit: "sqmeters",
-    secondaryAreaUnit: "hectares",
-    activeColor: "#00bcd4",
-    completedColor: "#4caf50",
-  })
-
-  measureControl.addTo(map)
-  ;(map as any)._measureControl = measureControl
-
-  console.log("✅ Control de medición inicializado", (map as any)._measureControl)
-})
-
-    // 👉 Inicializar Geoman
     if (map.pm) {
       map.pm.addControls({
         position: "topleft",
-        drawCircle: false,
+        drawCircle: true,
         drawMarker: false,
         drawText: false,
+        editMode: false,
+        dragMode: false,
+        cutPolygon: false,
       })
 
       map.on("pm:create", (e: any) => {
-        const msg = getMeasurement(e)
+        const shape = e.shape === "Line" || e.shape === "Polyline" ? "Line" : e.shape
+        const msg = getMeasurement(e.layer, shape)
+
         if (msg) {
           e.layer.bindPopup(msg).openPopup()
+          setToast({ msg, type: "info" })
         }
+
         setDrawing(null)
       })
     }
   }, [])
 
   // --- Activar herramienta de dibujo
-  function startDrawing(shape: string) {
+  function startDrawing(shape: "Line" | "Polygon" | "Circle") {
     if (!mapRef.current) return
-    mapRef.current.pm.enableDraw(shape)
+    const map = mapRef.current
+    map.pm.disableDraw()
+    map.pm.enableDraw(shape, { snappable: true })
     setDrawing(shape)
+    setToast({ msg: `✏️ Dibujo de ${shape} iniciado`, type: "info" })
   }
 
-  // --- Cancelar dibujo
+  // --- Cancelar dibujo y limpiar
   function cancelDrawing() {
     if (!mapRef.current) return
     const map = mapRef.current
@@ -184,92 +168,81 @@ map.whenReady(() => {
     }
   }
 
+  // --- Exportar KMZ
+  async function exportKMZ() {
+    try {
+      const zip = new JSZip()
+      const kml = tokml({
+        type: "FeatureCollection",
+        features: layers.map((l) => l.geojson).flat(),
+      })
+      zip.file("doc.kml", kml)
+      const blob = await zip.generateAsync({ type: "blob" })
+      triggerDownload(blob, "mapa.kmz")
+      setToast({ msg: "✅ Exportado a KMZ", type: "success" })
+    } catch (err) {
+      setToast({ msg: "❌ Error exportando KMZ", type: "error" })
+    }
+  }
+
+  // --- Exportar PDF
+  function exportPDF() {
+    if (!mapRef.current) return
+    leafletImage(mapRef.current, (err: any, canvas: HTMLCanvasElement) => {
+      if (err) {
+        setToast({ msg: "❌ Error al generar PDF", type: "error" })
+        return
+      }
+      const pdf = new jsPDF("landscape", "pt", "a4")
+      const imgData = canvas.toDataURL("image/png")
+      pdf.addImage(imgData, "PNG", 20, 20, 800, 500)
+      pdf.save("mapa.pdf")
+      setToast({ msg: "✅ Exportado a PDF", type: "success" })
+    })
+  }
+
+  // --- Helpers
+  function triggerDownload(blob: Blob, filename: string) {
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = filename
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   return (
     <div className="relative w-full rounded-xl border shadow-lg overflow-hidden">
       {/* Toast flotante */}
       {toast && (
         <div className="fixed top-4 right-4 z-[2000]">
-          <Toast message={toast.msg} type={toast.type} duration={4000} onClose={() => setToast(null)} />
+          <Toast message={toast.msg} type={toast.type} duration={3000} onClose={() => setToast(null)} />
         </div>
       )}
 
       {/* Toolbar flotante */}
-      <div className="absolute top-2 left-2 z-[1000] flex flex-wrap gap-2 p-2 bg-black/70 backdrop-blur rounded-lg shadow-md max-w-[95vw]">
-        <button onClick={fitChile} className="btn-map p-2 sm:px-3 sm:py-1.5 rounded-full sm:rounded-md">
-          ↺ <span className="hidden sm:inline ml-1">Chile</span>
-        </button>
-        <button onClick={goToMyLocation} className="btn-map p-2 sm:px-3 sm:py-1.5 rounded-full sm:rounded-md">
-          📍 <span className="hidden sm:inline ml-1">Ubicación</span>
-        </button>
-        <button onClick={toggleFullscreen} className="btn-map p-2 sm:px-3 sm:py-1.5 rounded-full sm:rounded-md">
-          ⛶ <span className="hidden sm:inline ml-1">Pantalla completa</span>
-        </button>
-        
-        <button
-        
-  onClick={() => {
-    if (mapRef.current && (mapRef.current as any)._measureControl) {
-      const ctl = (mapRef.current as any)._measureControl
-      console.log("✅ Botón Medir clickeado")
-
-      if (ctl._measuring) {
-        console.log("📏 Finalizando medición actual…")
-        ctl._finishPath()
-        setMeasuring(false) // 🔴 volver a estado inactivo
-      } else {
-        console.log("📐 Iniciando nueva medición (línea/polígono)…")
-        ctl._startMeasure()
-        setMeasuring(true) // 🟢 estado activo
-      }
-    } else {
-      console.warn("❌ No se encontró el control de medición en el mapa")
-    }
-  }}
-  className={`btn-map p-2 sm:px-3 sm:py-1.5 rounded-full sm:rounded-md ${
-    measuring ? "btn-map-active" : ""
-  }`}
->
-  🔍 <span className="hidden sm:inline ml-1">Medir</span>
-</button>
-
-
+      <div className="absolute top-2 left-2 z-[1000] flex flex-wrap gap-2 p-2 
+                      bg-black/70 backdrop-blur rounded-lg shadow-md max-w-[95vw] overflow-x-auto">
+        <button onClick={fitChile} className="btn-map">↺ Chile</button>
+        <button onClick={goToMyLocation} className="btn-map">📍</button>
+        <button onClick={toggleFullscreen} className="btn-map">⛶</button>
 
         {/* Botones de dibujo */}
-        <div className="flex flex-wrap gap-2">
-          <button
-            onClick={() => startDrawing("Polygon")}
-            className={`btn-map p-2 sm:px-3 sm:py-1.5 rounded-full sm:rounded-md ${drawing === "Polygon" ? "btn-map-active" : ""}`}
-          >
-            ✏️ <span className="hidden sm:inline ml-1">Polígono</span>
-          </button>
-          <button
-            onClick={() => startDrawing("Line")}
-            className={`btn-map p-2 sm:px-3 sm:py-1.5 rounded-full sm:rounded-md ${drawing === "Line" ? "btn-map-active" : ""}`}
-          >
-            📏 <span className="hidden sm:inline ml-1">Línea</span>
-          </button>
-          <button
-            onClick={() => startDrawing("Circle")}
-            className={`btn-map p-2 sm:px-3 sm:py-1.5 rounded-full sm:rounded-md ${drawing === "Circle" ? "btn-map-active" : ""}`}
-          >
-            ⭕ <span className="hidden sm:inline ml-1">Círculo</span>
-          </button>
-          {drawing && (
-            <button
-              onClick={cancelDrawing}
-              className="btn-map btn-map-danger p-2 sm:px-3 sm:py-1.5 rounded-full sm:rounded-md"
-            >
-              ❌ <span className="hidden sm:inline ml-1">Cancelar</span>
-            </button>
-          )}
-        </div>
+        <button onClick={() => startDrawing("Polygon")} className={`btn-map ${drawing === "Polygon" ? "btn-map-active" : ""}`}>📐 Polígono</button>
+        <button onClick={() => startDrawing("Line")} className={`btn-map ${drawing === "Line" ? "btn-map-active" : ""}`}>📏 Línea</button>
+        <button onClick={() => startDrawing("Circle")} className={`btn-map ${drawing === "Circle" ? "btn-map-active" : ""}`}>⭕ Círculo</button>
+        {drawing && <button onClick={cancelDrawing} className="btn-map btn-map-danger">❌ Cancelar</button>}
+
+        {/* Exportación */}
+        <button onClick={exportKMZ} className="btn-map btn-map-kmz">🌍 KMZ</button>
+        <button onClick={exportPDF} className="btn-map btn-map-pdf">📄 PDF</button>
       </div>
 
       {/* Mapa */}
       <MapContainer
         center={[chileCenter.lat, chileCenter.lng]}
         zoom={5}
-        className="w-full h-[60vh] sm:h-[70vh] rounded-xl"
+        className="w-full h-[70vh] rounded-xl"
         preferCanvas
         zoomControl={false}
         ref={(m) => { if (m) mapRef.current = m }}

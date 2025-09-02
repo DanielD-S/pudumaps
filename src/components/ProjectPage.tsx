@@ -20,11 +20,34 @@ export default function ProjectPage() {
   const [msg, setMsg] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
 
-  // referencia al mapa
   const mapApi = useRef<MapViewApi>(null)
-
-  // toggle menú WMS en móviles
   const [showWms, setShowWms] = useState(false)
+
+  // 🔐 Verificar acceso
+  useEffect(() => {
+    async function checkAccess() {
+      if (!projectId) return
+      const { data, error } = await supabase
+        .from("projects")
+        .select("owner_id, visibility")
+        .eq("id", projectId)
+        .single()
+
+      if (error) {
+        setErr("❌ Proyecto no encontrado")
+        return
+      }
+
+      if (data.visibility === "private") {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user || user.id !== data.owner_id) {
+          setErr("🚫 No tienes acceso a este proyecto")
+        }
+      }
+    }
+
+    checkAccess()
+  }, [projectId])
 
   async function loadLayers() {
     if (!projectId) return
@@ -36,7 +59,6 @@ export default function ProjectPage() {
       .order('created_at', { ascending: false })
 
     if (error) {
-      console.error(error)
       setLayers([])
       setErr(error.message)
       setLoading(false)
@@ -60,10 +82,7 @@ export default function ProjectPage() {
       .select('layer_id, stroke, weight, opacity, fill, fill_opacity, point_radius')
       .in('layer_id', layerIds)
 
-    if (error) {
-      console.error(error)
-      return
-    }
+    if (error) return
 
     const map: StylesById = {}
     for (const lId of layerIds) {
@@ -84,50 +103,12 @@ export default function ProjectPage() {
   useEffect(() => { loadLayers() }, [projectId])
   useEffect(() => { loadStyles(layers.map(l => l.id)) }, [layers])
 
-  // limpiar mensajes después de unos segundos
-  useEffect(() => {
-    if (msg) {
-      const t = setTimeout(() => setMsg(null), 4000)
-      return () => clearTimeout(t)
-    }
-  }, [msg])
-
-  function toggleVisible(id: string) {
-    setVisible(prev => ({ ...prev, [id]: !prev[id] }))
-  }
-
-  async function deleteLayer(id: string, name?: string) {
-    const ok = confirm(`¿Eliminar la capa "${name ?? id}"?`)
-    if (!ok) return
-    const { error } = await supabase.from('project_layers').delete().eq('id', id)
-    if (error) {
-      alert(error.message)
-      return
-    }
-    setLayers(prev => prev.filter(l => l.id !== id))
-    setVisible(prev => { const c = { ...prev }; delete c[id]; return c })
-    setStyles(prev => { const c = { ...prev }; delete c[id]; return c })
-  }
-
-  function zoomLayer(geojson: any) {
-    mapApi.current?.zoomTo(geojson)
-  }
-
-  function onStyleLocalChange(layerId: string, patch: Partial<LayerStyle>, persist?: boolean) {
-    setStyles(prev => ({ ...prev, [layerId]: { ...prev[layerId], ...patch } as LayerStyle }))
-    if (persist) {
-      supabase.from('project_layer_styles').upsert({
-        layer_id: layerId,
-        stroke: patch.color ?? styles[layerId]?.color ?? '#1f2937',
-        weight: patch.weight ?? styles[layerId]?.weight ?? 2,
-        opacity: patch.opacity ?? styles[layerId]?.opacity ?? 1,
-        fill: patch.fillColor ?? styles[layerId]?.fillColor ?? '#1f2937',
-        fill_opacity: patch.fillOpacity ?? styles[layerId]?.fillOpacity ?? 0.2,
-        point_radius: patch.radius ?? styles[layerId]?.radius ?? 5,
-      }, { onConflict: 'layer_id' }).then(({ error }) => {
-        if (error) alert('No se pudo guardar estilo: ' + error.message)
-      })
-    }
+  if (err) {
+    return (
+      <div className="p-6 text-center text-red-600 font-medium">
+        {err}
+      </div>
+    )
   }
 
   return (
@@ -136,9 +117,8 @@ export default function ProjectPage() {
         className="card flex flex-col lg:flex-row"
         style={{ width: "min(1400px, 98vw)" }}
       >
-        {/* Columna izquierda (móvil: toda la columna) */}
+        {/* Columna izquierda */}
         <div className="flex-1 flex flex-col">
-          {/* Encabezado */}
           <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-3">
             <Link
               to="/dashboard"
@@ -170,30 +150,32 @@ export default function ProjectPage() {
           <LayerList
             layers={layers}
             visible={visible}
-            onToggleVisible={toggleVisible}
-            onZoom={(l: ProjectLayer) => zoomLayer(l.geojson)}
-            onDelete={(l: ProjectLayer) => deleteLayer(l.id, l.name)}
+            onToggleVisible={(id) => setVisible(prev => ({ ...prev, [id]: !prev[id] }))}
+            onZoom={(l: ProjectLayer) => mapApi.current?.zoomTo(l.geojson)}
+            onDelete={(l: ProjectLayer) => {
+              const ok = confirm(`¿Eliminar la capa "${l.name}"?`)
+              if (ok) supabase.from("project_layers").delete().eq("id", l.id).then(() => loadLayers())
+            }}
           />
 
           <LayerStylePanel
             layers={layers}
             styles={styles}
-            onLocalChange={(id, patch) => onStyleLocalChange(id, patch, false)}
+            onLocalChange={(id, patch) => setStyles(prev => ({ ...prev, [id]: { ...prev[id], ...patch } }))}
           />
 
-          {/* Mapa */}
           <div style={{ flex: 1, minHeight: "500px" }}>
             <MapView ref={mapApi} layers={layers} visible={visible} styles={styles} />
           </div>
         </div>
 
-        {/* Panel derecho (solo en desktop) */}
+        {/* Panel derecho (solo desktop) */}
         <div className="hidden lg:block w-80 bg-[#1e293b] border-l border-gray-700">
           <WMSLayerPanel mapRef={mapApi} />
         </div>
       </div>
 
-      {/* FAB en móviles */}
+      {/* FAB móvil */}
       <button
         onClick={() => setShowWms(true)}
         className="lg:hidden fixed top-4 right-4 z-[1500] w-12 h-12 flex items-center justify-center rounded-full bg-green-600 hover:bg-green-700 text-white shadow-lg transition"
@@ -202,31 +184,20 @@ export default function ProjectPage() {
         🌐
       </button>
 
-      {/* Drawer móvil con animación */}
       {showWms && (
         <div className="fixed inset-0 z-[2000] flex">
-          {/* Fondo oscuro */}
           <div
             className="fixed inset-0 bg-black bg-opacity-50"
             onClick={() => setShowWms(false)}
           ></div>
-
-          {/* Panel deslizable */}
           <aside
-            className={`
-              relative w-72 bg-[#1e293b] h-full p-4 shadow-xl z-[2000] overflow-y-auto
+            className={`relative w-72 bg-[#1e293b] h-full p-4 shadow-xl z-[2000] overflow-y-auto 
               transform transition-transform duration-300 ease-in-out
-              ${showWms ? "translate-x-0" : "translate-x-full"}
-            `}
+              ${showWms ? "translate-x-0" : "translate-x-full"}`}
           >
             <div className="flex justify-between items-center mb-4 text-white">
               <h2 className="font-semibold">Capas externas</h2>
-              <button
-                onClick={() => setShowWms(false)}
-                className="text-gray-400 hover:text-gray-200"
-              >
-                ✕
-              </button>
+              <button onClick={() => setShowWms(false)} className="text-gray-400 hover:text-gray-200">✕</button>
             </div>
             <WMSLayerPanel mapRef={mapApi} />
           </aside>

@@ -9,6 +9,7 @@ interface Props {
 export default function ProjectForm({ onProjectCreated, onNotify }: Props) {
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
+  const [visibility, setVisibility] = useState<"private" | "public">("private") // 👈 nuevo estado
   const [loading, setLoading] = useState(false)
 
   async function createProject() {
@@ -22,7 +23,7 @@ export default function ProjectForm({ onProjectCreated, onNotify }: Props) {
 
     const { error } = await supabase
       .from("projects")
-      .insert([{ name, description, owner_id: user?.id }])
+      .insert([{ name, description, owner_id: user?.id, visibility }]) // 👈 guardar visibilidad
 
     setLoading(false)
     if (error) {
@@ -32,6 +33,7 @@ export default function ProjectForm({ onProjectCreated, onNotify }: Props) {
 
     setName("")
     setDescription("")
+    setVisibility("private") // reset al valor por defecto
     onProjectCreated()
     onNotify?.("✅ Proyecto creado", "success")
   }
@@ -54,6 +56,19 @@ export default function ProjectForm({ onProjectCreated, onNotify }: Props) {
         onChange={(e) => setDescription(e.target.value)}
         className="input"
       />
+
+      {/* Selector de visibilidad */}
+      <div>
+        <label className="block text-sm text-gray-300 mb-1">Visibilidad</label>
+        <select
+          className="input w-full"
+          value={visibility}
+          onChange={(e) => setVisibility(e.target.value as "private" | "public")}
+        >
+          <option value="private">🔒 Privado</option>
+          <option value="public">🌍 Público</option>
+        </select>
+      </div>
 
       <div className="flex gap-3">
         <button

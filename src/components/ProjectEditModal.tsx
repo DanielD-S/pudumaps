@@ -5,14 +5,24 @@ interface Props {
   id: string
   initialName: string
   initialDescription?: string
+  initialVisibility?: "private" | "public"
   onClose: () => void
   onUpdated: () => void
   onNotify?: (msg: string, type?: "success" | "error" | "info") => void
 }
 
-export default function ProjectEditModal({ id, initialName, initialDescription, onClose, onUpdated, onNotify }: Props) {
+export default function ProjectEditModal({
+  id,
+  initialName,
+  initialDescription,
+  initialVisibility = "private",
+  onClose,
+  onUpdated,
+  onNotify,
+}: Props) {
   const [name, setName] = useState(initialName)
   const [description, setDescription] = useState(initialDescription || "")
+  const [visibility, setVisibility] = useState<"private" | "public">(initialVisibility)
   const [loading, setLoading] = useState(false)
 
   async function updateProject() {
@@ -24,7 +34,7 @@ export default function ProjectEditModal({ id, initialName, initialDescription, 
 
     const { error } = await supabase
       .from("projects")
-      .update({ name, description })
+      .update({ name, description, visibility })
       .eq("id", id)
 
     setLoading(false)
@@ -62,6 +72,18 @@ export default function ProjectEditModal({ id, initialName, initialDescription, 
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />
+          </div>
+
+          <div>
+            <label className="block text-sm text-gray-300">Visibilidad</label>
+            <select
+              className="input w-full"
+              value={visibility}
+              onChange={(e) => setVisibility(e.target.value as "private" | "public")}
+            >
+              <option value="private">🔒 Privado</option>
+              <option value="public">🌍 Público</option>
+            </select>
           </div>
         </div>
 
