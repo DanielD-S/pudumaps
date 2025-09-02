@@ -10,11 +10,15 @@ import tokml from "tokml"
 import jsPDF from "jspdf"
 import leafletImage from "leaflet-image"
 
-// 👉 geoman para dibujo
+// 👉 Geoman (Leaflet.PM) para dibujo
 import "@geoman-io/leaflet-geoman-free"
 import "@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css"
 
-// 👉 geometryutil para cálculos
+// 👉 Leaflet.Measure para medición rápida
+import "leaflet-measure"
+import "leaflet-measure/dist/leaflet-measure.css"
+
+// 👉 Geometry util para cálculos
 import "leaflet-geometryutil"
 
 // 👉 Toast elegante
@@ -36,12 +40,12 @@ export default forwardRef<MapViewApi, {
   const [drawing, setDrawing] = useState<string | null>(null)
   const [toast, setToast] = useState<{ msg: string; type?: "success" | "error" | "info" } | null>(null)
 
-  // 👉 Estado para mapa base
+  // Estado para mapa base
   const [activeBase, setActiveBase] = useState<"osm" | "esri">("osm")
 
   const chileCenter = useMemo(() => ({ lat: -33.45, lng: -70.65 }), [])
 
-  // 👉 Exponer API
+  // Exponer API
   useImperativeHandle(ref, () => ({
     zoomTo(gj: any) {
       if (!mapRef.current) return
@@ -60,7 +64,7 @@ export default forwardRef<MapViewApi, {
     },
   }))
 
-  // --- Función para calcular medidas con estilo bonito
+  // --- Función para calcular medidas (Geoman)
   function getMeasurement(e: any): string {
     const shape = e.shape || e.layer?.pm?._shape || "Geometry"
 
@@ -74,7 +78,7 @@ export default forwardRef<MapViewApi, {
     if (shape === "Line") {
       const latlngs = e.layer.getLatLngs()
       const length = L.GeometryUtil.length(latlngs)
-      return `📏 Línea → ${length < 1000 ? length.toFixed(1) + " m" : (length / 1000).toFixed(2) + " km"}`
+      return `📏 Línea → ${length < 1000 ? length.toFixed(1) + " m" : (length / 1000).toFixed(2)} km`
     }
 
     if (shape === "Circle") {
@@ -87,43 +91,52 @@ export default forwardRef<MapViewApi, {
     return ""
   }
 
-  // --- Inicializar geoman y eventos de medición
+  // --- Inicializar Geoman + Leaflet.Measure
   useEffect(() => {
     if (!mapRef.current) return
     const map = mapRef.current
 
-    // Asegurar que Geoman tiene controles
-    map.pm.addControls({
-      position: "topleft",
-      drawCircle: true,
-      drawMarker: false,
-      drawText: false,
+    // 👉 Inicializar Leaflet.Measure y añadirlo (lo ocultaremos por CSS)
+    const measureControl = new (L.Control as any).Measure({
+      primaryLengthUnit: "meters",
+      secondaryLengthUnit: "kilometers",
+      primaryAreaUnit: "sqmeters",
+      secondaryAreaUnit: "hectares",
+      activeColor: "#00bcd4",
+      completedColor: "#4caf50",
     })
+    measureControl.addTo(map)
 
-    map.on("pm:create", (e: any) => {
-      console.log("✅ Evento pm:create recibido")
-      console.log("Shape detectado:", e.shape || e.layer?.pm?._shape)
+    // 👉 Guardar referencia para usar desde el botón custom
+    ;(map as any)._measureControl = measureControl
 
-      const msg = getMeasurement(e)
+    // 👉 Inicializar Geoman
+    if (map.pm) {
+      map.pm.addControls({
+        position: "topleft",
+        drawCircle: false,
+        drawMarker: false,
+        drawText: false,
+      })
 
-      if (msg) {
-        console.log("Popup generado:", msg)
-        e.layer.bindPopup(msg).openPopup()
-      } else {
-        console.warn("⚠️ No se pudo calcular medición para:", e)
-      }
-      setDrawing(null)
-    })
+      map.on("pm:create", (e: any) => {
+        const msg = getMeasurement(e)
+        if (msg) {
+          e.layer.bindPopup(msg).openPopup()
+        }
+        setDrawing(null)
+      })
+    }
   }, [])
 
-  // --- Activar herramienta de dibujo
+  // --- Activar herramienta de dibujo (Geoman)
   function startDrawing(shape: string) {
     if (!mapRef.current) return
     mapRef.current.pm.enableDraw(shape)
     setDrawing(shape)
   }
 
-  // --- Cancelar dibujo y borrar geometrías
+  // --- Cancelar dibujo y borrar geometrías (Geoman)
   function cancelDrawing() {
     if (!mapRef.current) return
     const map = mapRef.current
@@ -175,73 +188,6 @@ export default forwardRef<MapViewApi, {
     }
   }
 
-  // --- Exportar KMZ
-  async function exportVisibleAsKMZ() {
-    try {
-      const active = layers.filter((l) => visible[l.id])
-      if (active.length === 0) {
-        setToast({ msg: "❌ No hay capas visibles para exportar", type: "error" })
-        return
-      }
-
-      const folderKmls = active
-        .map((l) => {
-          const fc =
-            l.geojson.type === "FeatureCollection"
-              ? l.geojson
-              : { type: "FeatureCollection", features: [l.geojson] }
-          const kmlBody = tokml(fc)
-          const inner = kmlBody.replace(/^.*?<Document>/s, "").replace(/<\/Document>.*$/s, "")
-          return `<Folder><name>${escapeXml(l.name || "Capa")}</name>${inner}</Folder>`
-        })
-        .join("\n")
-
-      const fullKml =
-        `<?xml version="1.0" encoding="UTF-8"?>` +
-        `<kml xmlns="http://www.opengis.net/kml/2.2">` +
-        `<Document><name>Pudumaps export</name>${folderKmls}</Document></kml>`
-
-      const zip = new JSZip()
-      zip.file("doc.kml", fullKml)
-      const blob = await zip.generateAsync({ type: "blob" })
-      triggerDownload(blob, `pudumaps_${Date.now()}.kmz`)
-      setToast({ msg: "✅ Exportado a KMZ", type: "success" })
-    } catch (e: any) {
-      console.error(e)
-      setToast({ msg: "❌ No se pudo exportar KMZ", type: "error" })
-    }
-  }
-
-  // --- Exportar PDF
-  async function exportAsPDF() {
-    try {
-      if (!mapRef.current) {
-        setToast({ msg: "❌ No se encontró el mapa", type: "error" })
-        return
-      }
-
-      leafletImage(mapRef.current, (err: any, canvas: HTMLCanvasElement) => {
-        if (err) {
-          console.error(err)
-          setToast({ msg: "❌ No se pudo exportar PDF", type: "error" })
-          return
-        }
-
-        const imgData = canvas.toDataURL("image/png")
-        const pdf = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" })
-        const pageW = pdf.internal.pageSize.getWidth()
-        const imgH = (canvas.height / canvas.width) * pageW
-
-        pdf.addImage(imgData, "PNG", 0, 0, pageW, imgH)
-        pdf.save(`pudumaps_${Date.now()}.pdf`)
-        setToast({ msg: "✅ Exportado a PDF", type: "success" })
-      })
-    } catch (e: any) {
-      console.error(e)
-      setToast({ msg: "❌ No se pudo exportar PDF", type: "error" })
-    }
-  }
-
   return (
     <div className="relative w-full rounded-xl border shadow-lg overflow-hidden">
       {/* Toast flotante */}
@@ -257,18 +203,24 @@ export default forwardRef<MapViewApi, {
         <button onClick={goToMyLocation} className="btn-map">📍</button>
         <button onClick={toggleFullscreen} className="btn-map">{isFullscreen ? "⛶" : "⛶"}</button>
 
-        {/* Desktop: herramientas */}
+        {/* Botón Medir (Leaflet.Measure desde toolbar) */}
+        <button
+          onClick={() => {
+            if (mapRef.current && (mapRef.current as any)._measureControl) {
+              (mapRef.current as any)._measureControl.toggle()
+            }
+          }}
+          className="btn-map"
+        >
+          🔍 Medir
+        </button>
+
+        {/* Botones de dibujo (Geoman) */}
         <div className="hidden sm:flex gap-2">
           <button onClick={() => startDrawing("Polygon")} className={`btn-map ${drawing === "Polygon" ? "btn-map-active" : ""}`}>✏️ Polígono</button>
           <button onClick={() => startDrawing("Line")} className={`btn-map ${drawing === "Line" ? "btn-map-active" : ""}`}>📏 Línea</button>
           <button onClick={() => startDrawing("Circle")} className={`btn-map ${drawing === "Circle" ? "btn-map-active" : ""}`}>⭕ Círculo</button>
           {drawing && <button onClick={cancelDrawing} className="btn-map btn-map-danger">❌ Cancelar</button>}
-        </div>
-
-        {/* Exportaciones */}
-        <div className="hidden sm:flex gap-2">
-          <button onClick={exportVisibleAsKMZ} className="btn-map btn-map-export btn-map-kmz">⬇️ KMZ</button>
-          <button onClick={exportAsPDF} className="btn-map btn-map-export btn-map-pdf">🖨️ PDF</button>
         </div>
       </div>
 
@@ -294,34 +246,6 @@ export default forwardRef<MapViewApi, {
             </LayersControl.BaseLayer>
           </LayersControl>
         </div>
-
-        {activeBase === "osm" && (
-          <TileLayer attribution="&copy; OpenStreetMap" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" crossOrigin="anonymous" />
-        )}
-        {activeBase === "esri" && (
-          <TileLayer attribution="Tiles &copy; Esri" url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}" crossOrigin="anonymous" />
-        )}
-
-        {/* Capas GeoJSON */}
-        {layers.filter((l) => visible[l.id]).map((l) => {
-          const st = styles[l.id]
-          return (
-            <GeoJSONLayer
-              key={l.id}
-              data={l.geojson as any}
-              style={() => ({
-                color: st?.color ?? "#374151",
-                weight: st?.weight ?? 2,
-                opacity: st?.opacity ?? 1,
-                fillColor: st?.fillColor ?? "#1f2937",
-                fillOpacity: st?.fillOpacity ?? 0.2,
-              })}
-              pointToLayer={(_f, latlng) => L.circleMarker(latlng, { radius: st?.radius ?? 5 })}
-            />
-          )
-        })}
-
-        <WMSClickInfo layers={wmsLayers} />
       </MapContainer>
     </div>
   )

@@ -130,3 +130,27 @@ body {
 .btn-map-pdf {
   @apply bg-indigo-600 hover:bg-indigo-700;
 }
+/* Botón Leaflet.Measure (dark mode) */
+.leaflet-control-measure {
+  background: #1f2937 !important;
+  color: white !important;
+  border: 1px solid #374151 !important;
+  border-radius: 8px !important;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.4) !important;
+}
+
+.leaflet-control-measure-toggle {
+  background: transparent !important;
+  color: white !important;
+  font-size: 16px;
+}
+
+.leaflet-control-measure-toggle:hover {
+  background: #2563eb !important;
+  color: #fff !important;
+}
+
+/* Ocultar botón nativo de Leaflet.Measure */
+.leaflet-control-measure {
+  display: none !important;
+}
