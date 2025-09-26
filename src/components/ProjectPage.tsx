@@ -65,6 +65,12 @@ export default function ProjectPage() {
         return
       }
 
+      // 👇 si es público, lo dejamos pasar como viewer
+      if (project.visibility === "public") {
+        setRole("viewer")
+        return
+      }
+
       const { data: member, error: memberError } = await supabase
         .from("project_members")
         .select("id, role")
@@ -87,8 +93,8 @@ export default function ProjectPage() {
   async function loadMembers() {
     if (!projectId) return
     const { data, error } = await supabase
-      .from("project_members")
-      .select("id, user_id, role, users(email)")
+      .from("project_members_with_email") // 👈 usamos la vista
+      .select("id, user_id, role, user_email")
       .eq("project_id", projectId)
 
     if (error) {
@@ -96,14 +102,7 @@ export default function ProjectPage() {
       return
     }
 
-    setMembers(
-      (data || []).map((m: any) => ({
-        id: m.id,
-        user_id: m.user_id,
-        role: m.role,
-        user_email: m.users?.email ?? "sin-email",
-      }))
-    )
+    setMembers(data || [])
   }
 
   // 🔄 Cambiar rol
@@ -149,7 +148,6 @@ export default function ProjectPage() {
     setInviteLoading(true)
 
     try {
-      // RPC: obtener user_id desde correo
       const { data: userId, error: rpcError } = await supabase.rpc("get_user_id_by_email", {
         target_email: inviteEmail,
       })
