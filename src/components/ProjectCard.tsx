@@ -8,6 +8,8 @@ interface Props {
   description?: string
   isFavorite: boolean
   visibility?: "private" | "public"
+  ownerId?: string
+  currentUserId?: string
   onDelete: (id: string) => void
   onUpdated: () => void
   onToggleFavorite: () => void
@@ -20,6 +22,8 @@ export default function ProjectCard({
   description,
   isFavorite,
   visibility = "private",
+  ownerId,
+  currentUserId,
   onDelete,
   onUpdated,
   onToggleFavorite,
@@ -34,6 +38,8 @@ export default function ProjectCard({
       onNotify?.("🔗 Enlace copiado al portapapeles", "success")
     })
   }
+
+  const canEdit = ownerId === currentUserId
 
   return (
     <div className="bg-gray-800 rounded-lg shadow-md p-5 flex justify-between items-center hover:bg-gray-750 transition">
@@ -80,18 +86,23 @@ export default function ProjectCard({
           </button>
         )}
 
-        <button
-          onClick={() => setEditing(true)}
-          className="px-3 py-1.5 text-sm font-medium rounded-md border border-yellow-500 text-yellow-500 hover:bg-yellow-500 hover:text-white transition"
-        >
-          ✏️ Editar
-        </button>
-        <button
-          onClick={() => onDelete(id)}
-          className="px-3 py-1.5 text-sm font-medium rounded-md border border-red-500 text-red-500 hover:bg-red-500 hover:text-white transition"
-        >
-          🗑️ Eliminar
-        </button>
+        {/* 👇 Solo el dueño puede editar/eliminar */}
+        {canEdit && (
+          <>
+            <button
+              onClick={() => setEditing(true)}
+              className="px-3 py-1.5 text-sm font-medium rounded-md border border-yellow-500 text-yellow-500 hover:bg-yellow-500 hover:text-white transition"
+            >
+              ✏️ Editar
+            </button>
+            <button
+              onClick={() => onDelete(id)}
+              className="px-3 py-1.5 text-sm font-medium rounded-md border border-red-500 text-red-500 hover:bg-red-500 hover:text-white transition"
+            >
+              🗑️ Eliminar
+            </button>
+          </>
+        )}
       </div>
 
       {/* Modal de edición */}

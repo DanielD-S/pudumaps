@@ -11,7 +11,7 @@ type Project = {
   description?: string
   owner_id?: string
   is_favorite?: boolean
-  visibility?: "private" | "public"   // 👈 nuevo campo
+  visibility?: "private" | "public"
 }
 
 export default function Dashboard({ email }: { email: string }) {
@@ -19,19 +19,26 @@ export default function Dashboard({ email }: { email: string }) {
   const [toast, setToast] = useState<{ msg: string; type?: "success" | "error" | "info" } | null>(null)
   const [confirming, setConfirming] = useState<string | null>(null)
   const [search, setSearch] = useState("")
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
 
   // 🔄 Mostrar toast
   function showToast(msg: string, type: "success" | "error" | "info" = "info") {
     setToast({ msg, type })
   }
 
-  // 🔄 Cargar proyectos (favoritos primero ⭐)
+  // 🔄 Obtener usuario actual
+  async function loadCurrentUser() {
+    const { data } = await supabase.auth.getUser()
+    setCurrentUserId(data.user?.id ?? null)
+  }
+
+  // 🔄 Cargar proyectos
   async function loadProjects() {
     const { data, error } = await supabase
       .from("projects")
-      .select("id, name, description, owner_id, is_favorite, visibility") // 👈 incluir visibility
-      .order("is_favorite", { ascending: false }) // ⭐ primero
-      .order("created_at", { ascending: false })  // luego más nuevos
+      .select("id, name, description, owner_id, is_favorite, visibility")
+      .order("is_favorite", { ascending: false })
+      .order("created_at", { ascending: false })
 
     if (error) {
       showToast("❌ No se pudieron cargar los proyectos", "error")
@@ -77,6 +84,7 @@ export default function Dashboard({ email }: { email: string }) {
 
   useEffect(() => {
     loadProjects()
+    loadCurrentUser()
   }, [])
 
   // 🔍 Filtrar proyectos
@@ -141,7 +149,9 @@ export default function Dashboard({ email }: { email: string }) {
               name={p.name}
               description={p.description}
               isFavorite={p.is_favorite ?? false}
-              visibility={p.visibility ?? "private"}  // 👈 pasar a ProjectCard
+              visibility={p.visibility ?? "private"}
+              ownerId={p.owner_id}
+              currentUserId={currentUserId ?? undefined}
               onDelete={(id) => setConfirming(id)}
               onUpdated={() => {
                 loadProjects()
